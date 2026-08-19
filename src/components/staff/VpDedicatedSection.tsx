@@ -163,12 +163,12 @@ export const VpDedicatedSection: React.FC = () => {
       <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 font-mono text-[10px] font-black uppercase tracking-widest border border-purple-500/30 flex items-center gap-1.5">
-                <Crown className="w-3 h-3 text-purple-400" />
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-mono text-[10px] font-black uppercase tracking-widest border border-amber-500/30 flex items-center gap-1.5">
+                <Crown className="w-3 h-3 text-amber-400" />
                 <span>OFFICE OF THE VICE PRINCIPAL</span>
               </span>
-              <span className="text-xs text-slate-400 font-bold">Executive Directives Console</span>
+              <RoleLiveVerifiedBadge role="VICE_PRINCIPAL" size="sm" customLabel="LIVE VERIFIED VP" />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-white">
               VP Executive Photo & Security Console

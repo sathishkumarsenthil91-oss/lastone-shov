@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { avsCampusPhoto } from '../../data/mockData';
-import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
+import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
 import { 
   ShieldCheck, 
   RotateCw, 
@@ -87,44 +87,34 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
           {/* ========================================================= */}
           {/* STAFF CARD FRONT SIDE                                      */}
           {/* ========================================================= */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-emerald-800/40 flex flex-col justify-between backface-hidden shadow-2xl p-5 sm:p-6 select-text relative">
+          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text relative">
             
-            {/* Campus Background Texture */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.10] mix-blend-multiply select-none z-0">
-              <img
-                src={avsCampusPhoto}
-                alt="AVS Campus"
-                className="w-full h-full object-cover filter contrast-125 saturate-120"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-tr from-emerald-900/20 via-transparent to-white/40" />
-            </div>
+            {/* Subtle Guilloché Geometric Watermark Lines */}
+            <div className="absolute inset-0 pointer-events-none opacity-[0.035] select-none bg-[radial-gradient(#064e3b_1px,transparent_1px)] [background-size:12px_12px]" />
+            <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-emerald-600/5 via-teal-500/5 to-transparent rounded-full blur-2xl pointer-events-none" />
 
-            {/* Top Green Accent Bar */}
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-800" />
-
-            {/* 1. Header */}
-            <div className="relative z-10 flex items-start justify-between border-b border-slate-200 pb-3 mt-1">
+            {/* 1. Header Bar */}
+            <div className="bg-gradient-to-r from-slate-950 via-emerald-950 to-slate-900 text-white px-5 sm:px-6 py-3 flex items-center justify-between border-b-2 border-emerald-400 relative z-10 shadow-sm">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white p-1.5 flex items-center justify-center shadow-md">
-                  <ShieldCheck className="w-6 h-6 text-emerald-300" />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white p-1.5 flex items-center justify-center shadow-md ring-2 ring-white/20">
+                  <ShieldCheck className="w-5 h-5 text-emerald-200" />
                 </div>
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl font-black tracking-tight text-emerald-950">STAFF ID</span>
-                    <span className="text-[10px] font-extrabold tracking-widest text-emerald-700 uppercase">— SECURITY DESK —</span>
+                    <span className="text-base sm:text-lg font-black tracking-tight text-white">STAFF ID</span>
+                    <span className="text-[9px] font-extrabold tracking-widest text-emerald-300 uppercase">SECURITY DESK</span>
                   </div>
-                  <p className="text-[8px] font-bold text-slate-500 tracking-wider uppercase">
+                  <p className="text-[7.5px] font-mono font-bold text-slate-300 tracking-wider uppercase">
                     AUTHORIZE • SCAN • PROTECT
                   </p>
                 </div>
               </div>
 
               <div className="text-right">
-                <h1 className="text-sm sm:text-base font-black text-slate-950 tracking-tight uppercase leading-tight">
-                  AVS COLLEGE<br className="sm:hidden" /> OF TECHNOLOGY
+                <h1 className="text-xs sm:text-sm font-black text-white tracking-tight uppercase leading-tight">
+                  AVS COLLEGE OF TECHNOLOGY
                 </h1>
-                <p className="text-[9px] font-bold text-emerald-700">
+                <p className="text-[8px] sm:text-[8.5px] font-bold text-emerald-300">
                   Campus Security & Proctorial Division
                 </p>
               </div>
@@ -144,11 +134,14 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
                   />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-tight leading-tight">
-                    {staffName}
-                  </h2>
-                  <span className="text-[10px] font-extrabold text-emerald-700 block mt-0.5">
-                    OFFICIAL PROCTOR
+                  <div className="flex items-center justify-center gap-1.5">
+                    <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-tight leading-tight">
+                      {staffName}
+                    </h2>
+                    <InstagramTickIcon fillColor="#0095f6" sizeClass="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-extrabold text-sky-700 block mt-0.5">
+                    VERIFIED OFFICIAL PROCTOR
                   </span>
                 </div>
               </div>
@@ -156,10 +149,11 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
               {/* Metadata */}
               <div className="col-span-8 space-y-1.5">
                 <div className="flex items-center justify-end gap-2 mb-1">
-                  <div className="px-2.5 py-0.5 rounded-md bg-emerald-950 text-white text-[10px] font-black uppercase tracking-wider">
-                    STAFF CODE
+                  <div className="px-2.5 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-700 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                    <InstagramTickIcon fillColor="#0095f6" sizeClass="w-3 h-3" />
+                    <span>STAFF PASS</span>
                   </div>
-                  <span className="text-sm sm:text-base font-black text-emerald-950 font-mono tracking-tight">
+                  <span className="text-sm sm:text-base font-black text-slate-950 font-mono tracking-tight">
                     {staffId}
                   </span>
                 </div>

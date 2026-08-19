@@ -1,22 +1,11 @@
-import { createClient, User as SupabaseAuthUser } from '@supabase/supabase-js';
+import { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { User, UserRole, DepartmentCode } from '../types';
+import { supabase } from '../supabaseClient';
 
-// Supabase configuration for backend-shov
-export const SUPABASE_URL = 'https://eviprapchoufgatgvcwk.supabase.co';
-export const SUPABASE_ANON_KEY = 'sb_publishable_oaRaZYXKanklkaJTdEM23g__3d992cc';
+export const SUPABASE_URL = "https://ikrmewchmenwnsfxssmp.supabase.co";
+export const SUPABASE_ANON_KEY = "sb_publishable_nz1fBclKnt7Vx8lG60VBVg_Wv9r9uyY";
 
-// Initialize Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-});
+export { supabase };
 
 export interface SupabaseChatMessage {
   id?: string;
@@ -86,7 +75,7 @@ export async function signUpWithSupabase(
     designation?: string;
     phone?: string;
   }
-): Promise<{ success: boolean; user?: User; message?: string; error?: string }> {
+): Promise<{ success: boolean; user?: User; session?: any; message?: string; error?: string }> {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -108,15 +97,23 @@ export async function signUpWithSupabase(
     }
 
     if (data?.user) {
-      // If a session was automatically initiated by Supabase signUp, sign out immediately to enforce manual sign-in
-      if (data.session) {
-        await supabase.auth.signOut();
-      }
       const appUser = mapSupabaseUserToAppUser(data.user);
+      
+      // If data.session is null, email confirmation is required
+      if (!data.session) {
+        return {
+          success: true,
+          session: null,
+          user: appUser,
+          message: 'Check your email and confirm your account before logging in.'
+        };
+      }
+
       return {
         success: true,
+        session: data.session,
         user: appUser,
-        message: 'Account created successfully! Please enter your password to sign in.'
+        message: 'Account created and verified successfully!'
       };
     }
 
@@ -130,7 +127,7 @@ export async function signUpWithSupabase(
 export async function signInWithSupabase(
   email: string,
   password: string
-): Promise<{ success: boolean; user?: User; error?: string }> {
+): Promise<{ success: boolean; user?: User; session?: any; error?: string }> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -141,12 +138,19 @@ export async function signInWithSupabase(
       return { success: false, error: error.message };
     }
 
-    if (data?.user) {
+    if (data?.session && data?.user) {
       const appUser = mapSupabaseUserToAppUser(data.user);
-      return { success: true, user: appUser };
+      return { success: true, session: data.session, user: appUser };
     }
 
-    return { success: false, error: 'Failed to retrieve user profile.' };
+    if (data?.user && !data?.session) {
+      return { 
+        success: false, 
+        error: 'Check your email and confirm your account before logging in.' 
+      };
+    }
+
+    return { success: false, error: 'Failed to retrieve active session.' };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Network error during sign in.' };
   }

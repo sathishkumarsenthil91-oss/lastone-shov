@@ -18,6 +18,7 @@ import {
   Eye
 } from 'lucide-react';
 import { DepartmentCode, StudentOnboardingPayload } from '../../types';
+import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
 
 interface StudentOnboardingModalProps {
   isOpen: boolean;
@@ -201,9 +202,15 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
               <ShieldCheck className="w-5 h-5 text-white" />
             </span>
             <div>
-              <h2 className="text-lg font-black tracking-tight">SHOV Student Onboarding</h2>
-              <p className="text-xs text-blue-100 font-medium">
-                Google Verified Identity & Cryptographic ID Minting (IT, CSE, AIDS)
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black tracking-tight">SHOV Student Onboarding & Registration</h2>
+                <InstagramTickIcon fillColor="#ec4899" sizeClass="w-5 h-5" />
+              </div>
+              <p className="text-xs text-blue-100 font-medium flex items-center gap-1.5 mt-0.5">
+                <span>Google Verified Identity & Cryptographic ID Minting</span>
+                <span className="px-2 py-0.5 rounded-full bg-pink-500/30 text-white text-[10px] font-black uppercase tracking-wider font-mono">
+                  Pink Student Pass
+                </span>
               </p>
             </div>
           </div>

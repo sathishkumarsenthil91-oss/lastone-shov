@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { ShovLogo } from './ShovLogo';
+import { RoleLiveVerifiedBadge, InstagramTickIcon, getRoleVerifiedConfig } from './RoleLiveVerifiedBadge';
 import { UserRole } from '../../types';
 import { 
   Sun, 
@@ -418,57 +419,70 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* User Profile or Sign-In Trigger */}
+          {/* User Profile or Sign-In Trigger with Instagram Verified Badge */}
           {isAuthenticated && user ? (
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2.5 p-1.5 pr-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all border border-slate-200/60 dark:border-slate-800 cursor-pointer"
+                className="flex items-center gap-2 p-1.5 pr-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all border border-slate-200/60 dark:border-slate-800 cursor-pointer group"
               >
-                <img
-                  src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'}
-                  alt={user.name}
-                  className="w-9 h-9 rounded-xl object-cover ring-2 ring-blue-500/30"
-                />
-                <div className="hidden md:block text-left">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white leading-none">{user.name}</p>
-                  <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
-                    <span>{roleConfigs[role]?.label || role}</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <div className="relative">
+                  <img
+                    src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'}
+                    alt={user.name}
+                    className="w-9 h-9 rounded-xl object-cover ring-2 ring-slate-200 dark:ring-slate-700 group-hover:ring-blue-500/50 transition-all"
+                  />
+                  {/* Floating Instagram Verified Badge on Avatar */}
+                  <div className="absolute -bottom-1 -right-1 z-10">
+                    <InstagramTickIcon
+                      fillColor={getRoleVerifiedConfig(role).hex}
+                      sizeClass="w-4 h-4"
+                    />
+                  </div>
+                </div>
+
+                <div className="hidden md:block text-left pl-1">
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-black text-slate-900 dark:text-white leading-none">{user.name}</p>
+                    <InstagramTickIcon
+                      fillColor={getRoleVerifiedConfig(role).hex}
+                      sizeClass="w-3.5 h-3.5"
+                    />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                    <span className={getRoleVerifiedConfig(role).text}>{roleConfigs[role]?.label || role}</span>
                   </p>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-slate-400 ml-0.5" />
               </button>
 
               {showProfileMenu && (
-                <div className="absolute right-0 mt-3 w-72 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-black text-slate-900 dark:text-white">{user.name}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-mono">{user.email}</p>
-                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                        {roleConfigs[role]?.label || role}
-                      </span>
+                <div className="absolute right-0 mt-3 w-80 rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 p-3 z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 rounded-2xl mb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-black text-slate-900 dark:text-white">{user.name}</p>
+                        <InstagramTickIcon
+                          fillColor={getRoleVerifiedConfig(role).hex}
+                          sizeClass="w-4 h-4"
+                        />
+                      </div>
+                      <RoleLiveVerifiedBadge role={role} size="xs" showLabel={false} />
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-mono mt-0.5">{user.email}</p>
+                    
+                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                      <RoleLiveVerifiedBadge role={role} size="xs" showLabel={true} />
                       {user.departmentName && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                           {user.departmentName}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Switch Account & Register Options */}
+                  {/* Register Option */}
                   <div className="p-1 border-b border-slate-100 dark:border-slate-800 space-y-0.5">
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        onOpenLoginModal?.('login');
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer transition"
-                    >
-                      <KeyRound className="w-3.5 h-3.5 text-blue-500" />
-                      <span>Switch Role / Sign In</span>
-                    </button>
                     <button
                       onClick={() => {
                         setShowProfileMenu(false);

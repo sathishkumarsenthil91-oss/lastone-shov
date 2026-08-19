@@ -11,6 +11,7 @@ import { VpDedicatedSection } from './components/staff/VpDedicatedSection';
 import { PrincipalDedicatedSection } from './components/principal/PrincipalDedicatedSection';
 import { InstitutionalGateway } from './components/auth/InstitutionalGateway';
 import { DepartmentPromptModal } from './components/common/DepartmentPromptModal';
+import { RoleLiveVerifiedBadge, InstagramTickIcon, getRoleVerifiedConfig } from './components/common/RoleLiveVerifiedBadge';
 import { Department } from './types';
 import { 
   Building2, 
@@ -57,14 +58,18 @@ function AppContent() {
             
             {/* Active User Institutional Context */}
             <div className="flex items-center gap-2.5 text-xs">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-              <span className="font-bold text-slate-700 dark:text-slate-200">
+              <InstagramTickIcon
+                fillColor={getRoleVerifiedConfig(role).hex}
+                sizeClass="w-4 h-4"
+              />
+              <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                 {role === 'STUDENT' && `Student Session: ${user.name} • ${user.designation || 'B.E. Computer Science'}`}
                 {role === 'STAFF' && `Security & Proctor Desk: ${user.name} • Gate Turnstile 1`}
                 {role === 'HOD' && `Department Head: ${user.name} • ${user.departmentName || 'Computer Science & Engineering'}`}
                 {role === 'VICE_PRINCIPAL' && `Vice Principal: ${user.name} • Governance & Academic Affairs`}
                 {role === 'PRINCIPAL' && `Office of the Principal: ${user.name} • Institutional Command`}
               </span>
+              <RoleLiveVerifiedBadge role={role} size="xs" showLabel={true} />
             </div>
 
             {/* Right Context Controls */}
@@ -78,15 +83,6 @@ function AppContent() {
                   <span>{user.departmentId?.replace('dept-', '').toUpperCase() || 'CSE'}</span>
                 </button>
               )}
-
-              <button
-                onClick={() => setLoginModalMode('login')}
-                className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition"
-                title="Switch Account or Login with Another Role"
-              >
-                <KeyRound className="w-3 h-3 text-slate-400" />
-                <span className="hidden sm:inline">Switch Account</span>
-              </button>
             </div>
 
           </div>

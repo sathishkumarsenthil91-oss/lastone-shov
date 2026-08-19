@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { avsCampusPhoto } from '../../data/mockData';
-import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
+import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
 import { 
   Building2, 
   RotateCw, 
@@ -133,11 +133,14 @@ export const HodDigitalIDCard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-tight leading-tight">
-                    {hodName}
-                  </h2>
-                  <span className="text-[10px] font-extrabold text-sky-700 block mt-0.5 uppercase">
-                    HOD - {deptCode}
+                  <div className="flex items-center justify-center gap-1.5">
+                    <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-tight leading-tight">
+                      {hodName}
+                    </h2>
+                    <InstagramTickIcon fillColor="#ef4444" sizeClass="w-4 h-4" />
+                  </div>
+                  <span className="text-[10px] font-extrabold text-red-700 block mt-0.5 uppercase">
+                    HEAD OF DEPARTMENT ({deptCode})
                   </span>
                 </div>
               </div>
@@ -145,10 +148,11 @@ export const HodDigitalIDCard: React.FC = () => {
               {/* Metadata */}
               <div className="col-span-8 space-y-1.5">
                 <div className="flex items-center justify-end gap-2 mb-1">
-                  <div className="px-2.5 py-0.5 rounded-md bg-sky-950 text-white text-[10px] font-black uppercase tracking-wider">
-                    FACULTY ID
+                  <div className="px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-700 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                    <InstagramTickIcon fillColor="#ef4444" sizeClass="w-3 h-3" />
+                    <span>HOD CLEARANCE</span>
                   </div>
-                  <span className="text-sm sm:text-base font-black text-sky-950 font-mono tracking-tight">
+                  <span className="text-sm sm:text-base font-black text-slate-950 font-mono tracking-tight">
                     {facultyId}
                   </span>
                 </div>

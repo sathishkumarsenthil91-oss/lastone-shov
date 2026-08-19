@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { UserRole, DepartmentCode, StaffAccountPayload } from '../../types';
 import { ALL_COLLEGE_DEPARTMENTS } from '../../data/departmentsData';
+import { RoleLiveVerifiedBadge, InstagramTickIcon, getRoleVerifiedConfig } from '../common/RoleLiveVerifiedBadge';
 
 interface StaffAccountModalProps {
   isOpen: boolean;
@@ -101,9 +102,15 @@ export const StaffAccountModal: React.FC<StaffAccountModalProps> = ({
               <UserPlus className="w-5 h-5 text-white" />
             </span>
             <div>
-              <h2 className="text-base font-black tracking-tight">Create Staff, HOD, or VP Account</h2>
-              <p className="text-xs text-blue-100 font-medium">
-                Unlimited Faculty & Security Account Creation (Gmail & Phone)
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black tracking-tight">Register Staff, HOD, or VP Account</h2>
+                <InstagramTickIcon fillColor={getRoleVerifiedConfig(role).hex} sizeClass="w-4.5 h-4.5" />
+              </div>
+              <p className="text-xs text-blue-100 font-medium flex items-center gap-1.5 mt-0.5">
+                <span>Direct Faculty & Security Registration</span>
+                <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider font-mono">
+                  {getRoleVerifiedConfig(role).colorName} Pass
+                </span>
               </p>
             </div>
           </div>
@@ -134,22 +141,25 @@ export const StaffAccountModal: React.FC<StaffAccountModalProps> = ({
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { r: 'STAFF', label: 'Staff / Security', icon: <ShieldCheck className="w-3.5 h-3.5" /> },
-                  { r: 'HOD', label: 'Department HOD', icon: <Building2 className="w-3.5 h-3.5" /> },
-                  { r: 'VICE_PRINCIPAL', label: 'Vice Principal', icon: <Crown className="w-3.5 h-3.5" /> }
+                  { r: 'STAFF', label: 'Staff / Security', icon: <ShieldCheck className="w-3.5 h-3.5" />, hex: '#0095f6' },
+                  { r: 'HOD', label: 'Department HOD', icon: <Building2 className="w-3.5 h-3.5" />, hex: '#ef4444' },
+                  { r: 'VICE_PRINCIPAL', label: 'Vice Principal', icon: <Crown className="w-3.5 h-3.5" />, hex: '#f59e0b' }
                 ].map((item) => (
                   <button
                     type="button"
                     key={item.r}
                     onClick={() => setRole(item.r as any)}
-                    className={`py-2 px-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all ${
+                    className={`py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                       role === item.r
                         ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm'
                         : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    {item.icon}
-                    <span>{item.label}</span>
+                    <div className="flex items-center gap-1">
+                      {item.icon}
+                      <InstagramTickIcon fillColor={item.hex} sizeClass="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-[11px] whitespace-nowrap">{item.label}</span>
                   </button>
                 ))}
               </div>

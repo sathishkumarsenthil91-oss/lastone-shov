@@ -74,14 +74,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('shov_auth_user');
-    return saved ? JSON.parse(saved) : INITIAL_USERS[5]; // Default demo Student (Rohit Kumar - CSE)
-  });
-
-  const [role, setRole] = useState<UserRole>(() => {
-    return user ? user.role : 'STUDENT';
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<UserRole>('STUDENT');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isSessionLoading, setIsSessionLoading] = useState<boolean>(true);
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const savedDark = localStorage.getItem('shov_dark_mode');
@@ -100,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check Supabase session on startup and listen to auth changes
+  // Check Supabase session on startup and protect private pages
   useEffect(() => {
     const syncUserProfile = async (authUser: any) => {
       const basicUser = mapSupabaseUserToAppUser(authUser);
@@ -125,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           setUser(enrichedUser);
           setRole(enrichedUser.role);
+          setIsAuthenticated(true);
           localStorage.setItem('shov_auth_user', JSON.stringify(enrichedUser));
           return;
         }
@@ -134,17 +131,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(basicUser);
       setRole(basicUser.role);
+      setIsAuthenticated(true);
       localStorage.setItem('shov_auth_user', JSON.stringify(basicUser));
     };
 
     const checkSession = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.user) {
-          syncUserProfile(data.session.user);
+        setIsSessionLoading(true);
+        // Protect private pages with supabase.auth.getSession()
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error || !data.session || !data.session.user) {
+          // If no session exists, user is unauthenticated
+          setUser(null);
+          setIsAuthenticated(false);
+          localStorage.removeItem('shov_auth_user');
+        } else {
+          // Real session exists -> grant access
+          await syncUserProfile(data.session.user);
         }
       } catch (e) {
         console.warn('Session check notice:', e);
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsSessionLoading(false);
       }
     };
 
@@ -153,6 +164,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         syncUserProfile(session.user);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem('shov_auth_user');
       }
     });
 
