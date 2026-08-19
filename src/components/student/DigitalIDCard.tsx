@@ -33,7 +33,8 @@ import {
   BadgeCheck,
   Activity,
   Layers,
-  Copy
+  Copy,
+  Pencil
 } from 'lucide-react';
 
 interface DigitalIDCardProps {
@@ -41,6 +42,7 @@ interface DigitalIDCardProps {
   onReportLost?: () => void;
   onPhotoUpdated?: (newPhotoUrl: string) => void;
   onOpenDepartmentPrompt?: () => void;
+  onOpenEditModal?: () => void;
   customDepartmentName?: string;
 }
 
@@ -49,6 +51,7 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
   onReportLost, 
   onPhotoUpdated,
   onOpenDepartmentPrompt,
+  onOpenEditModal,
   customDepartmentName
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
@@ -245,8 +248,13 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Top Bar Controls */}
-      <div className="flex items-center justify-between px-2 flex-wrap gap-2">
+      {/* Top Bar Controls with Staggered Fade-in */}
+      <motion.div 
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="flex items-center justify-between px-2 flex-wrap gap-2"
+      >
         <div className="flex items-center gap-2">
           <RoleLiveVerifiedBadge role="STUDENT" size="sm" customLabel="STUDENT VERIFIED" />
           <span className="hidden sm:inline-block px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[11px] font-bold border border-blue-200 dark:border-blue-800">
@@ -255,20 +263,32 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Edit Identity Details Button */}
+          {onOpenEditModal && (
+            <button
+              onClick={onOpenEditModal}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+              title="Edit student particulars, photo and contact details"
+            >
+              <Pencil className="w-3.5 h-3.5 text-slate-950" />
+              <span>Edit Identity</span>
+            </button>
+          )}
+
           {/* Quick Scan to Verify Button */}
           <button
             onClick={() => setIsVerifyModalOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
             title="Scan and verify student credentials instantly"
           >
-            <Scan className="w-3.5 h-3.5" />
+            <Scan className="w-3.5 h-3.5 animate-pulse" />
             <span>Scan & Verify</span>
           </button>
 
           {/* View Campus Button */}
           <button
             onClick={() => setIsCampusLightboxOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
             title="View AVS Campus Building Photo"
           >
             <Building2 className="w-3.5 h-3.5 text-blue-500" />
@@ -278,16 +298,21 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
           {/* 3D Flip Card Button */}
           <button
             onClick={() => setIsFlipped(!isFlipped)}
-            className="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
           >
             <RotateCw className="w-3.5 h-3.5" />
             <span>{isFlipped ? 'Show Front' : 'Show Back (QR & Rules)'}</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* 3D FLIP CONTAINER WITH LUXURY SHADOW & SPRING ANIMATION */}
-      <div className="relative w-full aspect-[1.58/1] perspective-1000">
+      {/* 3D FLIP CONTAINER WITH LUXURY ENTRANCE MOTION & SPRING SETTLE */}
+      <motion.div 
+        initial={{ opacity: 0, y: 35, scale: 0.92, rotateX: 14 }}
+        animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
+        transition={{ duration: 0.8, type: 'spring', stiffness: 170, damping: 20 }}
+        className="relative w-full aspect-[1.58/1] perspective-1000 group/card"
+      >
         <motion.div
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ duration: 0.7, type: 'spring', stiffness: 220, damping: 25 }}
@@ -298,6 +323,14 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
           {/* CARD FRONT SIDE (Ultra Clean Institutional White Design)  */}
           {/* ========================================================= */}
           <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text relative">
+            
+            {/* Holographic Entry Light Sheen Sweep */}
+            <motion.div
+              initial={{ x: '-150%', opacity: 0.9 }}
+              animate={{ x: '250%', opacity: [0, 0.7, 0] }}
+              transition={{ duration: 1.6, delay: 0.35, ease: 'easeInOut' }}
+              className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/50 to-transparent skew-x-12 pointer-events-none z-30"
+            />
             
             {/* Subtle Guilloché Geometric Watermark Lines for Anti-Counterfeit Look */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.035] select-none bg-[radial-gradient(#0f172a_1px,transparent_1px)] [background-size:12px_12px]" />
@@ -691,7 +724,7 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
           </div>
 
         </motion.div>
-      </div>
+      </motion.div>
 
     </div>
   );

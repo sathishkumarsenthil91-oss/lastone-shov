@@ -1,11 +1,11 @@
 import { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { User, UserRole, DepartmentCode } from '../types';
-import { supabase } from '../supabaseClient';
+import { supabase, signInWithGoogle } from '../supabaseClient';
 
 export const SUPABASE_URL = "https://ikrmewchmenwnsfxssmp.supabase.co";
 export const SUPABASE_ANON_KEY = "sb_publishable_nz1fBclKnt7Vx8lG60VBVg_Wv9r9uyY";
 
-export { supabase };
+export { supabase, signInWithGoogle };
 
 export interface SupabaseChatMessage {
   id?: string;

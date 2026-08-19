@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { DigitalIDCard } from './DigitalIDCard';
 import { FinePaymentModal } from './FinePaymentModal';
@@ -218,8 +219,13 @@ export const StudentSection: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* 1. STUDENT HEADER HERO */}
-      <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white border border-blue-900/40 shadow-xl relative overflow-hidden">
+      {/* 1. STUDENT HEADER HERO WITH ENTRANCE MOTION */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white border border-blue-900/40 shadow-xl relative overflow-hidden"
+      >
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -242,13 +248,22 @@ export const StudentSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Stats Pill */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[100px]">
+          {/* Quick Stats Pill & Edit Button */}
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="px-3.5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+              title="Edit your Student ID Card Particulars & Information"
+            >
+              <Edit3 className="w-4 h-4 text-slate-950" />
+              <span>Edit Identity Info</span>
+            </button>
+
+            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[90px]">
               <span className="text-[10px] text-slate-300 uppercase font-bold block">Attendance</span>
               <span className="text-lg font-black text-emerald-400">94.2%</span>
             </div>
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[100px]">
+            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[90px]">
               <span className="text-[10px] text-slate-300 uppercase font-bold block">Pending Fines</span>
               <span className={`text-lg font-black ${totalPendingAmount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                 ₹{totalPendingAmount}
@@ -256,7 +271,7 @@ export const StudentSection: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 2. SUB NAVIGATION TABS */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
@@ -363,6 +378,7 @@ export const StudentSection: React.FC = () => {
 
           <DigitalIDCard 
             student={student} 
+            onOpenEditModal={() => setShowEditModal(true)}
             onReportLost={() => setShowReportLostModal(true)} 
             onPhotoUpdated={(newPhoto) => {
               setStudent(prev => ({ ...prev, photoUrl: newPhoto }));
