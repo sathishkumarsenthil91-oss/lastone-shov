@@ -124,6 +124,17 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Academic Record</span>
             </button>
             <button
+              onClick={() => setActiveTab?.('student-gate-pass')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === 'student-gate-pass'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Gate Access Pass</span>
+            </button>
+            <button
               onClick={() => setActiveTab?.('student-fines')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-fines'

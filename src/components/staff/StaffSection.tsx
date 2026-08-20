@@ -3,11 +3,12 @@ import { StaffScanner } from './StaffScanner';
 import { StaffHistory } from './StaffHistory';
 import { StaffHodCommunication } from './StaffHodCommunication';
 import { StaffDigitalIDCard } from './StaffDigitalIDCard';
+import { ClassCoordinatorSection } from '../coordinator/ClassCoordinatorSection';
 import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
-import { ShieldCheck, History, Scan, Building2, UserCheck, QrCode } from 'lucide-react';
+import { ShieldCheck, History, Scan, Building2, UserCheck, QrCode, FileText } from 'lucide-react';
 
 export const StaffSection: React.FC = () => {
-  const [activeStaffTab, setActiveStaffTab] = useState<'badge' | 'scanner' | 'history' | 'communication'>('badge');
+  const [activeStaffTab, setActiveStaffTab] = useState<'badge' | 'scanner' | 'history' | 'coordinator-passes' | 'communication'>('badge');
 
   return (
     <div className="space-y-6">
@@ -29,7 +30,7 @@ export const StaffSection: React.FC = () => {
               Staff & Gate Security Portal
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              Biometric Facial Matcher, QR Gate Turnstiles, Audit Logs & Direct Channel to Department HODs.
+              Biometric Facial Matcher, QR Gate Turnstiles, Gate Pass Approvals & Direct Channel to Department HODs.
             </p>
           </div>
 
@@ -73,6 +74,18 @@ export const StaffSection: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveStaffTab('coordinator-passes')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeStaffTab === 'coordinator-passes'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>Gate Pass Verification Desk</span>
+        </button>
+
+        <button
           onClick={() => setActiveStaffTab('history')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeStaffTab === 'history'
@@ -108,6 +121,10 @@ export const StaffSection: React.FC = () => {
         <StaffScanner />
       )}
 
+      {activeStaffTab === 'coordinator-passes' && (
+        <ClassCoordinatorSection />
+      )}
+
       {activeStaffTab === 'history' && (
         <StaffHistory />
       )}
@@ -119,3 +136,4 @@ export const StaffSection: React.FC = () => {
     </div>
   );
 };
+

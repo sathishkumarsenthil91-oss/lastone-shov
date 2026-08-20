@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { DigitalIDCard } from './DigitalIDCard';
+import { CampusGatePassSection } from './CampusGatePassSection';
 import { FinePaymentModal } from './FinePaymentModal';
 import { InquiriesHub } from './InquiriesHub';
 import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
@@ -34,14 +35,15 @@ import {
   Users,
   Image as ImageIcon,
   Check,
-  X
+  X,
+  DoorOpen
 } from 'lucide-react';
 
 export const StudentSection: React.FC = () => {
   const { user, addNotification } = useAuth();
 
   // Active sub-tab inside Student Section
-  const [studentTab, setStudentTab] = useState<'id-card' | 'academic' | 'fines' | 'inquiries'>('id-card');
+  const [studentTab, setStudentTab] = useState<'id-card' | 'academic' | 'gate-pass' | 'fines' | 'inquiries'>('id-card');
 
   // Selected student (defaults to matched logged-in student or Rohit Kumar)
   const [student, setStudent] = useState<Student>(() => {
@@ -211,11 +213,6 @@ export const StudentSection: React.FC = () => {
     addNotification('Digital ID Updated', 'Student identification card information saved successfully.', 'success');
   };
 
-  const handleSelectStudentPreset = (preset: Student) => {
-    setStudent(preset);
-    addNotification('Member Connected', `Switched active ID to ${preset.name} (${preset.registerNumber}).`, 'info');
-  };
-
   return (
     <div className="space-y-6">
       
@@ -300,6 +297,18 @@ export const StudentSection: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setStudentTab('gate-pass')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            studentTab === 'gate-pass'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
+          }`}
+        >
+          <DoorOpen className="w-3.5 h-3.5" />
+          <span>Campus Gate Pass</span>
+        </button>
+
+        <button
           onClick={() => setStudentTab('fines')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             studentTab === 'fines'
@@ -327,55 +336,6 @@ export const StudentSection: React.FC = () => {
       {/* 3. TAB CONTENT */}
       {studentTab === 'id-card' && (
         <div className="space-y-6">
-          
-          {/* Easy ID Card Management & Member Switcher Bar */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
-                <QrCode className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>Connected Member: {student.name}</span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 font-mono text-[10px] font-bold">
-                    {student.registerNumber}
-                  </span>
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  {student.department} • Year {student.year}
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Switch & Edit Controls */}
-            <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                <span className="text-[11px] font-bold text-slate-500 mr-1 hidden sm:inline">Connect Member:</span>
-                {INITIAL_STUDENTS.map(preset => (
-                  <button
-                    key={preset.id}
-                    onClick={() => handleSelectStudentPreset(preset)}
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${
-                      student.id === preset.id || student.registerNumber === preset.registerNumber
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {preset.name.split(' ')[0]}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ml-auto md:ml-2 shadow-sm"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit ID Card Info</span>
-              </button>
-            </div>
-          </div>
-
           <DigitalIDCard 
             student={student} 
             onOpenEditModal={() => setShowEditModal(true)}
@@ -386,6 +346,10 @@ export const StudentSection: React.FC = () => {
             }}
           />
         </div>
+      )}
+
+      {studentTab === 'gate-pass' && (
+        <CampusGatePassSection student={student} />
       )}
 
       {studentTab === 'academic' && (

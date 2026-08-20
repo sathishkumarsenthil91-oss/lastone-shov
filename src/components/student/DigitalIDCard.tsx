@@ -253,55 +253,58 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="flex items-center justify-between px-2 flex-wrap gap-2"
+        className="flex items-center justify-between px-1 sm:px-2 flex-wrap gap-2"
       >
-        <div className="flex items-center gap-2">
-          <RoleLiveVerifiedBadge role="STUDENT" size="sm" customLabel="STUDENT VERIFIED" />
-          <span className="hidden sm:inline-block px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[11px] font-bold border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center gap-2 flex-wrap">
+          <RoleLiveVerifiedBadge role="STUDENT" size="sm" customLabel="STUDENT ID" />
+          <span className="px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[10px] sm:text-[11px] font-bold border border-blue-200 dark:border-blue-800">
+            Card Type: <strong>Student ID ({isFlipped ? 'Back' : 'Front'})</strong>
+          </span>
+          <span className="hidden sm:inline-block px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-mono font-bold">
             {student.registerNumber}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           {/* Edit Identity Details Button */}
           {onOpenEditModal && (
             <button
               onClick={onOpenEditModal}
-              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
               title="Edit student particulars, photo and contact details"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-950" />
-              <span>Edit Identity</span>
+              <span className="text-[11px] sm:text-xs">Edit Identity</span>
             </button>
           )}
 
           {/* Quick Scan to Verify Button */}
           <button
             onClick={() => setIsVerifyModalOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
             title="Scan and verify student credentials instantly"
           >
             <Scan className="w-3.5 h-3.5 animate-pulse" />
-            <span>Scan & Verify</span>
+            <span className="text-[11px] sm:text-xs">Verify</span>
           </button>
 
           {/* View Campus Button */}
           <button
             onClick={() => setIsCampusLightboxOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
             title="View AVS Campus Building Photo"
           >
             <Building2 className="w-3.5 h-3.5 text-blue-500" />
-            <span className="hidden sm:inline">Campus Photo</span>
+            <span className="hidden sm:inline text-xs">Campus Photo</span>
           </button>
 
-          {/* 3D Flip Card Button */}
+          {/* 3D Flip Card Button (Front vs Back) */}
           <button
             onClick={() => setIsFlipped(!isFlipped)}
-            className="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+            className="px-3 sm:px-3.5 py-1.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
           >
             <RotateCw className="w-3.5 h-3.5" />
-            <span>{isFlipped ? 'Show Front' : 'Show Back (QR & Rules)'}</span>
+            <span className="text-[11px] sm:text-xs">{isFlipped ? 'Show Front Side' : 'Show Back Side'}</span>
           </button>
         </div>
       </motion.div>
@@ -311,12 +314,12 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         initial={{ opacity: 0, y: 35, scale: 0.92, rotateX: 14 }}
         animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
         transition={{ duration: 0.8, type: 'spring', stiffness: 170, damping: 20 }}
-        className="relative w-full aspect-[1.58/1] perspective-1000 group/card"
+        className="relative w-full min-h-[320px] sm:min-h-[330px] aspect-auto sm:aspect-[1.58/1] perspective-1000 group/card"
       >
         <motion.div
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ duration: 0.7, type: 'spring', stiffness: 220, damping: 25 }}
-          className="w-full h-full relative transform-style-3d shadow-2xl rounded-3xl"
+          className="w-full h-full min-h-[320px] sm:min-h-[330px] relative transform-style-3d shadow-2xl rounded-3xl"
         >
           
           {/* ========================================================= */}
