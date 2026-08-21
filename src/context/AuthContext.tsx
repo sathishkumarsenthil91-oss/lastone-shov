@@ -66,6 +66,7 @@ interface AuthContextType {
   createNewStaffAccount: (payload: StaffAccountPayload) => Promise<{ success: boolean; message?: string }>;
   switchRole: (newRole: UserRole, departmentCode?: DepartmentCode, councilMemberId?: string) => void;
   switchCouncilMember: (memberId: string) => void;
+  updateUserAvatar: (newAvatarUrl: string) => Promise<void>;
   logout: () => void;
   addNotification: (title: string, message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
   removeNotification: (id: string) => void;
@@ -465,6 +466,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserAvatar = async (newAvatarUrl: string) => {
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, avatarUrl: newAvatarUrl };
+      localStorage.setItem('shov_auth_user', JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      if (user?.id) {
+        await supabase
+          .from('profiles')
+          .update({ avatar_url: newAvatarUrl, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+      }
+    } catch (err) {
+      console.warn('Profile avatar update notice:', err);
+    }
+
+    addNotification('Profile Photo Updated', 'Your identity avatar has been saved and synchronized across all credentials.', 'success');
+  };
+
   const logout = async () => {
     await signOutFromSupabase();
     setUser(null);
@@ -493,6 +516,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createNewStaffAccount,
         switchRole,
         switchCouncilMember,
+        updateUserAvatar,
         logout,
         addNotification,
         removeNotification,

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { DigitalIDCard } from '../student/DigitalIDCard';
+import { StaffDigitalIDCard } from '../staff/StaffDigitalIDCard';
+import { HodDigitalIDCard } from '../staff/HodDigitalIDCard';
+import { VpDigitalIDCard } from '../staff/VpDigitalIDCard';
 import { StaffScanner } from '../staff/StaffScanner';
 import { DepartmentPromptModal } from '../common/DepartmentPromptModal';
 import { Department } from '../../types';
@@ -90,10 +93,18 @@ export const QrAndIdSection: React.FC = () => {
       {/* Sub-tab 1: Digital ID Card */}
       {activeSubTab === 'id-card' && (
         <div className="space-y-4">
-          <DigitalIDCard 
-            onOpenDepartmentPrompt={() => setShowDeptPrompt(true)}
-            customDepartmentName={selectedDept}
-          />
+          {role === 'STAFF' ? (
+            <StaffDigitalIDCard />
+          ) : role === 'HOD' ? (
+            <HodDigitalIDCard />
+          ) : role === 'VICE_PRINCIPAL' ? (
+            <VpDigitalIDCard />
+          ) : (
+            <DigitalIDCard 
+              onOpenDepartmentPrompt={() => setShowDeptPrompt(true)}
+              customDepartmentName={selectedDept}
+            />
+          )}
         </div>
       )}
 

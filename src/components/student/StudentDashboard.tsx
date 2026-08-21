@@ -7,6 +7,8 @@ import { LiveQrScannerModal } from '../common/LiveQrScannerModal';
 import { Student, Fine, Payment } from '../../types';
 import { INITIAL_STUDENTS, INITIAL_FINES, INITIAL_PAYMENTS } from '../../data/mockData';
 import { fetchFinesApi, verifyQrTokenApi } from '../../services/api';
+import { supabase } from '../../services/supabase';
+import { UniversalConceptLinksBar } from '../common/UniversalConceptLinksBar';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   UserCheck, 
@@ -58,6 +60,58 @@ export const StudentDashboard: React.FC = () => {
     message: string;
     studentName?: string;
   } | null>(null);
+
+  // Total Notes count from Supabase database
+  const [totalNotes, setTotalNotes] = useState<number>(0);
+
+  // 1. Fetch current authenticated user & count notes where user_id = current user id
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchNotesCount = async () => {
+      try {
+        // Requirement 1: Fetch current authenticated user using supabase.auth.getUser()
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const currentUserId = authUser?.id || user?.id;
+
+        if (!currentUserId) {
+          if (isMounted) setTotalNotes(0);
+          return;
+        }
+
+        // Requirement 2: Count number of notes in "notes" table where user_id = current user id
+        const { count, error } = await supabase
+          .from('notes')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUserId);
+
+        if (!error && count !== null && isMounted) {
+          setTotalNotes(count);
+        }
+      } catch (err) {
+        console.warn('Error querying notes count from Supabase:', err);
+      }
+    };
+
+    fetchNotesCount();
+
+    // Requirement 6: Make sure it updates automatically when a note is created or deleted
+    const channel = supabase
+      .channel('realtime_student_notes_count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notes' },
+        () => {
+          fetchNotesCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     loadStudentFines();
@@ -174,6 +228,109 @@ export const StudentDashboard: React.FC = () => {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Quick Concept Deep-Links Bar */}
+      <UniversalConceptLinksBar 
+        activeHash="#student-dashboard"
+        onNavigate={(hash) => {
+          window.location.hash = hash;
+        }}
+      />
+
+      {/* KPI Overview Metrics Row - Including Live Supabase Total Notes */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Notes Card - Powered by Supabase Realtime - Clickable Link */}
+        <div 
+          onClick={() => {
+            window.location.hash = '#notes';
+          }}
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/50 shadow-xl space-y-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] group"
+          title="Click to open full Supabase Notes Repository"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-sky-500 transition-colors">Total Notes</span>
+            <span className="p-2 rounded-xl bg-blue-500/10 text-blue-500 group-hover:bg-sky-500 group-hover:text-white transition-colors">
+              <FileText className="w-4 h-4" />
+            </span>
+          </div>
+          <p className="text-2xl font-black text-slate-900 dark:text-white">
+            {totalNotes}
+          </p>
+          <p className="text-[10px] text-sky-500 font-semibold flex items-center justify-between">
+            <span className="flex items-center gap-1"><Sparkles className="w-3 h-3" /> Live Supabase</span>
+            <span className="text-[9px] font-bold text-slate-400 group-hover:text-sky-500">Open #notes →</span>
+          </p>
+        </div>
+
+        {/* Card 2: Digital ID Status - Clickable Link */}
+        <div 
+          onClick={() => {
+            window.location.hash = '#id-card';
+          }}
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 shadow-xl space-y-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] group"
+          title="Click to view 3D Digital ID Card"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-emerald-500 transition-colors">Card Status</span>
+            <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+              <ShieldCheck className="w-4 h-4" />
+            </span>
+          </div>
+          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            {student.status}
+          </p>
+          <p className="text-[10px] text-slate-400 font-semibold flex items-center justify-between">
+            <span>Biometric Secured</span>
+            <span className="text-[9px] font-bold text-slate-400 group-hover:text-emerald-500">Open #id-card →</span>
+          </p>
+        </div>
+
+        {/* Card 3: Attendance - Clickable Link */}
+        <div 
+          onClick={() => {
+            window.location.hash = '#academic';
+          }}
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl space-y-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] group"
+          title="Click to view Academic Record"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-indigo-500 transition-colors">Attendance</span>
+            <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+              <Clock className="w-4 h-4" />
+            </span>
+          </div>
+          <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+            94.2%
+          </p>
+          <p className="text-[10px] text-emerald-500 font-semibold flex items-center justify-between">
+            <span>Eligible for Exams</span>
+            <span className="text-[9px] font-bold text-slate-400 group-hover:text-indigo-500">Open #academic →</span>
+          </p>
+        </div>
+
+        {/* Card 4: Outstanding Dues - Clickable Link */}
+        <div 
+          onClick={() => {
+            window.location.hash = '#fines';
+          }}
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-rose-500/50 shadow-xl space-y-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] group"
+          title="Click to view Fines and Fee Clearance"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-rose-500 transition-colors">Pending Dues</span>
+            <span className={`p-2 rounded-xl ${totalPendingAmount > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'} group-hover:bg-rose-500 group-hover:text-white transition-colors`}>
+              <CreditCard className="w-4 h-4" />
+            </span>
+          </div>
+          <p className={`text-2xl font-black ${totalPendingAmount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+            ₹{totalPendingAmount}
+          </p>
+          <p className="text-[10px] text-slate-400 font-semibold flex items-center justify-between">
+            <span>{totalPendingAmount > 0 ? `${pendingFines.length} pending notices` : 'All Clear'}</span>
+            <span className="text-[9px] font-bold text-slate-400 group-hover:text-rose-500">Open #fines →</span>
+          </p>
+        </div>
       </div>
 
       {/* Quick Direct Inquiries & Student Election Council Hub Highlights */}

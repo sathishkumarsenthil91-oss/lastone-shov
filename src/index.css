@@ -4,6 +4,9 @@
   .perspective-1000 {
     perspective: 1000px;
   }
+  .perspective-2000 {
+    perspective: 2000px;
+  }
   .transform-style-3d {
     transform-style: preserve-3d;
   }
@@ -31,6 +34,69 @@
   animation: scanLaser 2.2s ease-in-out infinite;
 }
 
+@keyframes laserSweepVertical {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(220%);
+    opacity: 0;
+  }
+}
+
+.animate-laser-sweep {
+  animation: laserSweepVertical 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes strokeDraw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-stroke-draw {
+  stroke-dasharray: 1000;
+  animation: strokeDraw 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes radarPing {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.animate-radar-ping {
+  animation: radarPing 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes cyberGridFloat {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 48px 48px;
+  }
+}
+
+.animate-cyber-grid {
+  animation: cyberGridFloat 20s linear infinite;
+}
+
 @keyframes dashFlow {
   0% {
     stroke-dashoffset: 100;
@@ -50,7 +116,7 @@
     filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4));
   }
   50% {
-    filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.85));
+    filter: drop-shadow(0 0 18px rgba(56, 189, 248, 0.95));
   }
 }
 

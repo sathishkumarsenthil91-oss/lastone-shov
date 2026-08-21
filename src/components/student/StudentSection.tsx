@@ -5,11 +5,14 @@ import { DigitalIDCard } from './DigitalIDCard';
 import { CampusGatePassSection } from './CampusGatePassSection';
 import { FinePaymentModal } from './FinePaymentModal';
 import { InquiriesHub } from './InquiriesHub';
+import { StudentNotesRepository } from './StudentNotesRepository';
+import { UniversalConceptLinksBar } from '../common/UniversalConceptLinksBar';
 import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
 import { Student, Fine, Payment } from '../../types';
 import { INITIAL_STUDENTS, INITIAL_FINES, INITIAL_PAYMENTS } from '../../data/mockData';
 import { fetchFinesApi } from '../../services/api';
 import { uploadToSupabaseStorage } from '../../services/storageService';
+import { supabase } from '../../services/supabase';
 import { 
   GraduationCap, 
   CreditCard, 
@@ -39,14 +42,15 @@ import {
   X,
   DoorOpen,
   Camera,
-  Upload
+  Upload,
+  BookOpen
 } from 'lucide-react';
 
 export const StudentSection: React.FC = () => {
   const { user, addNotification } = useAuth();
 
   // Active sub-tab inside Student Section
-  const [studentTab, setStudentTab] = useState<'id-card' | 'academic' | 'gate-pass' | 'fines' | 'inquiries'>('id-card');
+  const [studentTab, setStudentTab] = useState<'id-card' | 'notes' | 'academic' | 'gate-pass' | 'fines' | 'inquiries'>('id-card');
 
   // Selected student (defaults to matched logged-in student or Rohit Kumar)
   const [student, setStudent] = useState<Student>(() => {
@@ -131,6 +135,77 @@ export const StudentSection: React.FC = () => {
   const [showReportLostModal, setShowReportLostModal] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [totalNotes, setTotalNotes] = useState<number>(0);
+
+  // 1. Fetch current authenticated user & count notes where user_id = current user id
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchNotesCount = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const currentUserId = authUser?.id || user?.id;
+
+        if (!currentUserId) {
+          if (isMounted) setTotalNotes(0);
+          return;
+        }
+
+        const { count, error } = await supabase
+          .from('notes')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUserId);
+
+        if (!error && count !== null && isMounted) {
+          setTotalNotes(count);
+        }
+      } catch (err) {
+        console.warn('Error fetching notes count from Supabase:', err);
+      }
+    };
+
+    fetchNotesCount();
+
+    const channel = supabase
+      .channel('realtime_student_section_notes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notes' },
+        () => {
+          fetchNotesCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // Synchronize studentTab with URL hash for all concepts
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (hash === 'notes' || hash === 'student-notes') {
+        setStudentTab('notes');
+      } else if (hash === 'id-card' || hash === 'student-id' || hash === 'id') {
+        setStudentTab('id-card');
+      } else if (hash === 'academic' || hash === 'student-academic') {
+        setStudentTab('academic');
+      } else if (hash === 'gate-pass' || hash === 'student-gate-pass' || hash === 'gatepass') {
+        setStudentTab('gate-pass');
+      } else if (hash === 'fines' || hash === 'student-fines') {
+        setStudentTab('fines');
+      } else if (hash === 'inquiries' || hash === 'student-inquiries') {
+        setStudentTab('inquiries');
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Edit Card Form State
   const [editForm, setEditForm] = useState({
@@ -219,6 +294,17 @@ export const StudentSection: React.FC = () => {
   return (
     <div className="space-y-6">
       
+      {/* 0. UNIVERSAL CONCEPT LINKS & DIRECTORY */}
+      <UniversalConceptLinksBar 
+        activeHash={`#${studentTab}`}
+        onNavigate={(hash) => {
+          const tab = hash.replace('#', '');
+          if (tab === 'notes' || tab === 'id-card' || tab === 'academic' || tab === 'gate-pass' || tab === 'fines' || tab === 'inquiries') {
+            setStudentTab(tab as any);
+          }
+        }}
+      />
+
       {/* 1. STUDENT HEADER HERO WITH ENTRANCE MOTION */}
       <motion.div 
         initial={{ opacity: 0, y: -20, scale: 0.98 }}
@@ -248,7 +334,7 @@ export const StudentSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Stats Pill & Edit Button */}
+          {/* Quick Stats Pill & Edit Button with Interactive Link Actions */}
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <button
               onClick={() => setShowEditModal(true)}
@@ -259,16 +345,46 @@ export const StudentSection: React.FC = () => {
               <span>Edit Identity Info</span>
             </button>
 
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[90px]">
-              <span className="text-[10px] text-slate-300 uppercase font-bold block">Attendance</span>
+            {/* Clickable Total Notes Shortcut */}
+            <button
+              onClick={() => {
+                setStudentTab('notes');
+                window.location.hash = '#notes';
+              }}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-sky-500/20 backdrop-blur-md border border-white/10 hover:border-sky-400/50 text-center min-w-[90px] transition-all cursor-pointer group"
+              title="View Total Notes repository in Supabase"
+            >
+              <span className="text-[10px] text-slate-300 uppercase font-bold block group-hover:text-sky-300">Total Notes</span>
+              <span className="text-lg font-black text-sky-400">{totalNotes}</span>
+            </button>
+
+            {/* Clickable Attendance Shortcut */}
+            <button
+              onClick={() => {
+                setStudentTab('academic');
+                window.location.hash = '#academic';
+              }}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-emerald-500/20 backdrop-blur-md border border-white/10 hover:border-emerald-400/50 text-center min-w-[90px] transition-all cursor-pointer group"
+              title="View Academic Record"
+            >
+              <span className="text-[10px] text-slate-300 uppercase font-bold block group-hover:text-emerald-300">Attendance</span>
               <span className="text-lg font-black text-emerald-400">94.2%</span>
-            </div>
-            <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-center min-w-[90px]">
-              <span className="text-[10px] text-slate-300 uppercase font-bold block">Pending Fines</span>
+            </button>
+
+            {/* Clickable Pending Fines Shortcut */}
+            <button
+              onClick={() => {
+                setStudentTab('fines');
+                window.location.hash = '#fines';
+              }}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-rose-500/20 backdrop-blur-md border border-white/10 hover:border-rose-400/50 text-center min-w-[90px] transition-all cursor-pointer group"
+              title="View Pending Fines and Pay Online"
+            >
+              <span className="text-[10px] text-slate-300 uppercase font-bold block group-hover:text-rose-300">Pending Fines</span>
               <span className={`text-lg font-black ${totalPendingAmount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                 ₹{totalPendingAmount}
               </span>
-            </div>
+            </button>
           </div>
         </div>
       </motion.div>
@@ -276,7 +392,10 @@ export const StudentSection: React.FC = () => {
       {/* 2. SUB NAVIGATION TABS */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
         <button
-          onClick={() => setStudentTab('id-card')}
+          onClick={() => {
+            setStudentTab('id-card');
+            window.location.hash = '#id-card';
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             studentTab === 'id-card'
               ? 'bg-blue-600 text-white shadow-md'
@@ -288,7 +407,25 @@ export const StudentSection: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setStudentTab('academic')}
+          onClick={() => {
+            setStudentTab('notes');
+            window.location.hash = '#notes';
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            studentTab === 'notes'
+              ? 'bg-sky-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>Study Notes Repository ({totalNotes})</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setStudentTab('academic');
+            window.location.hash = '#academic';
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             studentTab === 'academic'
               ? 'bg-blue-600 text-white shadow-md'
@@ -300,7 +437,10 @@ export const StudentSection: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setStudentTab('gate-pass')}
+          onClick={() => {
+            setStudentTab('gate-pass');
+            window.location.hash = '#gate-pass';
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             studentTab === 'gate-pass'
               ? 'bg-blue-600 text-white shadow-md'
@@ -312,7 +452,10 @@ export const StudentSection: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setStudentTab('fines')}
+          onClick={() => {
+            setStudentTab('fines');
+            window.location.hash = '#fines';
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             studentTab === 'fines'
               ? 'bg-blue-600 text-white shadow-md'
@@ -324,7 +467,10 @@ export const StudentSection: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setStudentTab('inquiries')}
+          onClick={() => {
+            setStudentTab('inquiries');
+            window.location.hash = '#inquiries';
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
             studentTab === 'inquiries'
               ? 'bg-blue-600 text-white shadow-md'
@@ -337,6 +483,12 @@ export const StudentSection: React.FC = () => {
       </div>
 
       {/* 3. TAB CONTENT */}
+      {studentTab === 'notes' && (
+        <StudentNotesRepository 
+          onNotesCountUpdated={(count) => setTotalNotes(count)}
+        />
+      )}
+
       {studentTab === 'id-card' && (
         <div className="space-y-6">
           <DigitalIDCard 

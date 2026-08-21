@@ -6,6 +6,7 @@ import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVeri
 import { motion, AnimatePresence } from 'motion/react';
 import { rohitKumarPhoto, avsCampusPhoto, INITIAL_STUDENTS } from '../../data/mockData';
 import { uploadToSupabaseStorage } from '../../services/storageService';
+import { useAuth } from '../../context/AuthContext';
 import { 
   ShieldCheck, 
   RotateCw, 
@@ -56,6 +57,7 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
   onOpenEditModal,
   customDepartmentName
 }) => {
+  const { updateUserAvatar, addNotification } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isCampusLightboxOpen, setIsCampusLightboxOpen] = useState(false);
@@ -64,10 +66,20 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
   const [qrType, setQrType] = useState<'turnstile' | 'biometric' | 'iso'>('turnstile');
   const [copiedToken, setCopiedToken] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [localPhoto, setLocalPhoto] = useState<string | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   const displayDept = customDepartmentName || student.departmentName || student.department || 'Computer Science & Engineering';
-  const photoToUse = student.photoUrl || rohitKumarPhoto;
+  const photoToUse = localPhoto || student.photoUrl || rohitKumarPhoto;
+
+  const handlePhotoChange = (newUrl: string) => {
+    setLocalPhoto(newUrl);
+    if (onPhotoUpdated) {
+      onPhotoUpdated(newUrl);
+    } else {
+      updateUserAvatar(newUrl);
+    }
+  };
 
   const qrPayload = `AVSCT://STUDENT/VERIFY?reg=${student.registerNumber}&id=${student.studentIdNumber || 'STU-10001'}&type=${qrType}&ts=${Date.now()}`;
 
@@ -90,12 +102,14 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         userId: student.id || student.registerNumber
       });
       if (res.signedUrl) {
-        onPhotoUpdated?.(res.signedUrl);
+        handlePhotoChange(res.signedUrl);
+        addNotification('Gallery Photo Attached', 'Your ID card profile picture has been updated.', 'success');
       } else {
         const reader = new FileReader();
         reader.onload = () => {
           if (typeof reader.result === 'string') {
-            onPhotoUpdated?.(reader.result);
+            handlePhotoChange(reader.result as string);
+            addNotification('Gallery Photo Attached', 'Your ID card profile picture has been updated.', 'success');
           }
         };
         reader.readAsDataURL(file);
@@ -367,7 +381,10 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
           {/* ========================================================= */}
           {/* CARD FRONT SIDE (Ultra Clean Institutional White Design)  */}
           {/* ========================================================= */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text">
+          <div 
+            className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text"
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
             
             {/* Holographic Entry Light Sheen Sweep */}
             <motion.div
@@ -433,24 +450,30 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
                   </div>
 
                   {/* Dual Photo Controls: Gallery Pick & Live Camera */}
-                  {onPhotoUpdated && (
-                    <div className="absolute -bottom-2 -right-2 flex items-center gap-1">
-                      <button
-                        onClick={() => galleryInputRef.current?.click()}
-                        className="p-1.5 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
-                        title="Upload Photo from Device Gallery"
-                      >
-                        <ImageIcon className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setIsCameraCaptureOpen(true)}
-                        className="p-1.5 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
-                        title="Capture Live Snapshot / Open Camera Modal"
-                      >
-                        <Camera className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
+                  <div className="absolute -bottom-2 -right-2 flex items-center gap-1 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        galleryInputRef.current?.click();
+                      }}
+                      className="p-1.5 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
+                      title="Upload Photo from Device Gallery"
+                    >
+                      <ImageIcon className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCameraCaptureOpen(true);
+                      }}
+                      className="p-1.5 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
+                      title="Capture Live Snapshot / Open Camera Modal"
+                    >
+                      <Camera className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-center gap-1.5 mt-0.5">
@@ -594,7 +617,10 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
           {/* ========================================================= */}
           {/* CARD BACK SIDE (Enhanced Dynamic QR & Verification Engine) */}
           {/* ========================================================= */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between transform-rotateY-180 backface-hidden shadow-2xl select-text relative">
+          <div 
+            className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between transform-rotateY-180 backface-hidden shadow-2xl select-text relative"
+            style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
             
             {/* Subtle Geometric Background */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.03] select-none bg-[radial-gradient(#0f172a_1px,transparent_1px)] [background-size:12px_12px]" />
@@ -781,6 +807,16 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         </motion.div>
       </div>
 
+      {/* Live Camera Snapshot Modal for Student ID */}
+      <LiveCameraCaptureModal
+        isOpen={isCameraCaptureOpen}
+        onClose={() => setIsCameraCaptureOpen(false)}
+        onCapture={(photoData) => {
+          handlePhotoChange(photoData);
+          addNotification('Live Snapshot Saved', 'Your student identity photo has been updated from camera.', 'success');
+        }}
+        studentName={student.name}
+      />
     </div>
   );
 };

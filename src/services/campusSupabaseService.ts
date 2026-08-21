@@ -14,8 +14,190 @@ import { INITIAL_HOD_VP_POSTS, INITIAL_FINES, INITIAL_VERIFICATION_LOGS } from '
 import { uploadToSupabaseStorage, getSignedFileUrl, deleteFileFromStorage } from './storageService';
 
 // ============================================================================
-// 1. USER PROFILES & PROFILE UPDATES
+// 1. USER PROFILES, NOTES & PROFILE UPDATES
 // ============================================================================
+
+export interface StudentNote {
+  id: string;
+  userId?: string;
+  title: string;
+  content: string;
+  subjectCode?: string;
+  subjectName?: string;
+  category?: 'LECTURE_NOTE' | 'LAB_MANUAL' | 'ASSIGNMENT' | 'EXAM_PREP';
+  tags?: string[];
+  fileUrl?: string;
+  isPinned?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function fetchUserNotesFromSupabase(userId?: string): Promise<StudentNote[]> {
+  try {
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      targetUserId = user?.id;
+    }
+
+    let query = supabase.from('notes').select('*');
+    if (targetUserId) {
+      query = query.eq('user_id', targetUserId);
+    }
+    
+    const { data, error } = await query
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map((item: any) => ({
+      id: item.id,
+      userId: item.user_id,
+      title: item.title,
+      content: item.content,
+      subjectCode: item.subject_code,
+      subjectName: item.subject_name,
+      category: item.category || 'LECTURE_NOTE',
+      tags: item.tags || [],
+      fileUrl: item.file_url,
+      isPinned: item.is_pinned || false,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at
+    }));
+  } catch (e) {
+    console.warn('Error fetching notes from Supabase:', e);
+    return [];
+  }
+}
+
+export async function createUserNoteInSupabase(note: {
+  title: string;
+  content: string;
+  subjectCode?: string;
+  subjectName?: string;
+  category?: string;
+  tags?: string[];
+  fileUrl?: string;
+  isPinned?: boolean;
+}): Promise<StudentNote | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload = {
+      user_id: user?.id,
+      title: note.title,
+      content: note.content,
+      subject_code: note.subjectCode || 'GEN-101',
+      subject_name: note.subjectName || 'General Academic',
+      category: note.category || 'LECTURE_NOTE',
+      tags: note.tags || [],
+      file_url: note.fileUrl,
+      is_pinned: note.isPinned ?? false
+    };
+
+    const { data, error } = await supabase
+      .from('notes')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.warn('Error creating note in Supabase:', error?.message);
+      return {
+        id: 'local-' + Date.now(),
+        userId: user?.id,
+        title: note.title,
+        content: note.content,
+        subjectCode: note.subjectCode,
+        subjectName: note.subjectName,
+        category: (note.category as any) || 'LECTURE_NOTE',
+        tags: note.tags || [],
+        fileUrl: note.fileUrl,
+        isPinned: note.isPinned || false,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    return {
+      id: data.id,
+      userId: data.user_id,
+      title: data.title,
+      content: data.content,
+      subjectCode: data.subject_code,
+      subjectName: data.subject_name,
+      category: data.category,
+      tags: data.tags,
+      fileUrl: data.file_url,
+      isPinned: data.is_pinned,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
+  } catch (err) {
+    console.warn('Create note fallback:', err);
+    return null;
+  }
+}
+
+export async function deleteUserNoteFromSupabase(noteId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', noteId);
+
+    if (error) {
+      console.warn('Delete note error:', error.message);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function togglePinUserNoteInSupabase(noteId: string, isPinned: boolean): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('notes')
+      .update({ is_pinned: isPinned })
+      .eq('id', noteId);
+
+    if (error) {
+      console.warn('Pin note error:', error.message);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchUserNotesCountFromSupabase(userId?: string): Promise<number> {
+  try {
+    let targetUserId = userId;
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      targetUserId = user?.id;
+    }
+    if (!targetUserId) return 0;
+
+    const { count, error } = await supabase
+      .from('notes')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', targetUserId);
+
+    if (error) {
+      console.warn('Error counting notes from Supabase:', error.message);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (e) {
+    console.warn('Error fetching notes count from Supabase:', e);
+    return 0;
+  }
+}
 
 export async function fetchUserProfileFromSupabase(userId: string): Promise<User | null> {
   try {

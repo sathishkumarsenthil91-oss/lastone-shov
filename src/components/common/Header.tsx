@@ -27,7 +27,8 @@ import {
   History,
   Send,
   Award,
-  KeyRound
+  KeyRound,
+  BookOpen
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -102,7 +103,10 @@ export const Header: React.FC<HeaderProps> = ({
         return (
           <>
             <button
-              onClick={() => setActiveTab?.('student-id')}
+              onClick={() => {
+                setActiveTab?.('student-id');
+                window.location.hash = '#id-card';
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-id' || activeTab === 'student'
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -113,7 +117,24 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Digital ID Card</span>
             </button>
             <button
-              onClick={() => setActiveTab?.('student-academic')}
+              onClick={() => {
+                setActiveTab?.('student-notes');
+                window.location.hash = '#notes';
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === 'student-notes'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Study Notes</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab?.('student-academic');
+                window.location.hash = '#academic';
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-academic'
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -124,7 +145,10 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Academic Record</span>
             </button>
             <button
-              onClick={() => setActiveTab?.('student-gate-pass')}
+              onClick={() => {
+                setActiveTab?.('student-gate-pass');
+                window.location.hash = '#gate-pass';
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-gate-pass'
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -135,7 +159,10 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Gate Access Pass</span>
             </button>
             <button
-              onClick={() => setActiveTab?.('student-fines')}
+              onClick={() => {
+                setActiveTab?.('student-fines');
+                window.location.hash = '#fines';
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-fines'
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -146,7 +173,10 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Fines & Fee Clearance</span>
             </button>
             <button
-              onClick={() => setActiveTab?.('student-inquiries')}
+              onClick={() => {
+                setActiveTab?.('student-inquiries');
+                window.location.hash = '#inquiries';
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-inquiries'
                   ? 'bg-blue-600 text-white shadow-sm'

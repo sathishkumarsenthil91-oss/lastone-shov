@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { avsCampusPhoto } from '../../data/mockData';
 import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
+import { ImageLightbox } from '../common/ImageLightbox';
+import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
+import { uploadToSupabaseStorage } from '../../services/storageService';
 import { 
   ShieldCheck, 
   RotateCw, 
@@ -23,16 +26,23 @@ import {
   AlertCircle,
   FileCheck2,
   Lock,
-  Radio
+  Radio,
+  Image as ImageIcon,
+  Maximize2
 } from 'lucide-react';
 
 interface StaffDigitalIDCardProps {
   onPhotoUpdated?: (newPhoto: string) => void;
 }
 
-export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
-  const { user, addNotification } = useAuth();
+export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = ({ onPhotoUpdated }) => {
+  const { user, addNotification, updateUserAvatar } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isCameraCaptureOpen, setIsCameraCaptureOpen] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [localPhoto, setLocalPhoto] = useState<string | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   const staffName = user?.name || 'Officer Marcus Vance';
   const staffId = user?.staffId || (user?.username?.toUpperCase()?.startsWith('STF') ? user.username.toUpperCase() : 'STF-2026-01');
@@ -40,9 +50,53 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
   const department = user?.departmentName || 'Campus Security & Gate Operations';
   const email = user?.email || 'marcus.vance@avsct.edu.in';
   const phone = user?.phoneNumber || '+91 98765 11223';
-  const avatarUrl = user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300';
+  const avatarUrl = localPhoto || user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300';
   const station = 'North Gate Turnstile 1';
   const validUntil = '31-12-2028';
+
+  const handlePhotoChange = (newUrl: string) => {
+    setLocalPhoto(newUrl);
+    if (onPhotoUpdated) {
+      onPhotoUpdated(newUrl);
+    } else {
+      updateUserAvatar(newUrl);
+    }
+  };
+
+  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const res = await uploadToSupabaseStorage(file, {
+        featureName: 'avatars',
+        itemId: staffId,
+        fileName: file.name,
+        userId: user?.id || staffId
+      });
+      if (res.signedUrl) {
+        handlePhotoChange(res.signedUrl);
+        addNotification('Staff Photo Updated', 'Your identity photo has been uploaded from gallery.', 'success');
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            handlePhotoChange(reader.result as string);
+            addNotification('Staff Photo Updated', 'Your identity photo has been uploaded from gallery.', 'success');
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.warn('Gallery upload fallback:', err);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleDownload = () => {
     addNotification('Staff ID Card Exported', `Digital badge for ${staffName} (${staffId}) saved.`, 'success');
@@ -51,6 +105,35 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
   return (
     <div className="w-full max-w-2xl mx-auto select-none space-y-4">
       
+      {/* Hidden File Input for Device Gallery Photo Selection */}
+      <input
+        type="file"
+        ref={galleryInputRef}
+        onChange={handleGalleryFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Lightbox Modal */}
+      <ImageLightbox
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        photoUrl={avatarUrl}
+        title={staffName}
+        subtitle={`STAFF ID: ${staffId} • ${designation}`}
+        badge="AVS Campus Security & Proctorial Division"
+        status="ACTIVE"
+        details={[
+          { label: 'Staff ID', value: staffId },
+          { label: 'Department', value: department },
+          { label: 'Designation', value: designation },
+          { label: 'Assigned Post', value: station },
+          { label: 'Email', value: email },
+          { label: 'Phone', value: phone },
+          { label: 'Valid Until', value: validUntil }
+        ]}
+      />
+
       {/* Top Controls */}
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
@@ -58,6 +141,15 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => galleryInputRef.current?.click()}
+            className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            title="Upload Photo from Gallery"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-indigo-600" />
+            <span className="hidden sm:inline">Upload Photo</span>
+          </button>
+
           <button
             onClick={handleDownload}
             className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
@@ -76,18 +168,22 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
         </div>
       </div>
 
-      {/* 3D FLIP CONTAINER */}
-      <div className="relative w-full aspect-[1.58/1] perspective-1000">
+      {/* 3D FLIP CONTAINER - STABILIZED WITH CENTER TRANSFORM ORIGIN TO PREVENT DOWNSIDE DRIFT */}
+      <div className="relative w-full min-h-[350px] sm:min-h-[360px] h-[350px] sm:h-[360px] perspective-1000 overflow-visible">
         <motion.div
           animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.6, ease: 'easeInOut' }}
+          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
           className="w-full h-full relative transform-style-3d shadow-2xl rounded-3xl"
+          style={{ transformOrigin: 'center center', transformStyle: 'preserve-3d' }}
         >
           
           {/* ========================================================= */}
           {/* STAFF CARD FRONT SIDE                                      */}
           {/* ========================================================= */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text relative">
+          <div 
+            className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text relative"
+            style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
             
             {/* Subtle Guilloché Geometric Watermark Lines */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.035] select-none bg-[radial-gradient(#064e3b_1px,transparent_1px)] [background-size:12px_12px]" />
@@ -121,27 +217,63 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
             </div>
 
             {/* 2. Middle Particulars */}
-            <div className="relative z-10 my-auto py-2 grid grid-cols-12 gap-4 items-center">
+            <div className="relative z-10 my-auto py-2 grid grid-cols-12 gap-4 items-center px-5 sm:px-6">
               
               {/* Photo & Name */}
               <div className="col-span-4 flex flex-col items-center text-center space-y-1.5">
-                <div className="w-24 h-28 sm:w-28 sm:h-32 rounded-2xl overflow-hidden ring-3 ring-emerald-900/30 shadow-lg bg-slate-100">
-                  <img
-                    src={avatarUrl}
-                    alt={staffName}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+                <div className="relative group">
+                  <div 
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="w-24 h-28 sm:w-28 sm:h-32 rounded-2xl overflow-hidden ring-3 ring-emerald-900/30 shadow-lg bg-slate-100 cursor-pointer relative"
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={staffName}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-bold gap-1 rounded-2xl">
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      <span>HD</span>
+                    </div>
+                  </div>
+
+                  {/* Dual Photo Controls: Gallery Pick & Live Camera */}
+                  <div className="absolute -bottom-2 -right-2 flex items-center gap-1 z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        galleryInputRef.current?.click();
+                      }}
+                      className="p-1.5 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
+                      title="Upload Photo from Device Gallery"
+                    >
+                      <ImageIcon className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCameraCaptureOpen(true);
+                      }}
+                      className="p-1.5 rounded-full bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
+                      title="Capture Live Snapshot"
+                    >
+                      <Camera className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
+
                 <div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <h2 className="text-sm sm:text-base font-black text-slate-950 tracking-tight leading-tight">
+                  <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                    <h2 className="text-xs sm:text-sm font-black text-slate-950 tracking-tight leading-tight">
                       {staffName}
                     </h2>
-                    <InstagramTickIcon fillColor="#0095f6" sizeClass="w-4 h-4" />
+                    <InstagramTickIcon fillColor="#0095f6" sizeClass="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-[10px] font-extrabold text-sky-700 block mt-0.5">
-                    VERIFIED OFFICIAL PROCTOR
+                  <span className="text-[9px] font-extrabold text-sky-700 block mt-0.5 uppercase">
+                    OFFICIAL PROCTOR
                   </span>
                 </div>
               </div>
@@ -206,7 +338,7 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
             </div>
 
             {/* 3. Footer */}
-            <div className="relative z-10 border-t border-slate-200 pt-2.5 flex items-end justify-between">
+            <div className="relative z-10 border-t border-slate-200 py-2.5 px-5 sm:px-6 flex items-end justify-between bg-slate-50">
               <div className="space-y-1">
                 <div>
                   <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">
@@ -229,7 +361,7 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
               {/* QR Gate Pass */}
               <div className="flex items-stretch rounded-xl border-2 border-emerald-950 overflow-hidden shadow-md bg-white">
                 <div className="p-1">
-                  <svg viewBox="0 0 100 100" className="w-16 h-16 sm:w-18 sm:h-18">
+                  <svg viewBox="0 0 100 100" className="w-14 h-14 sm:w-16 sm:h-16">
                     <rect x="0" y="0" width="30" height="30" fill="#064e3b" rx="3" />
                     <rect x="5" y="5" width="20" height="20" fill="#ffffff" rx="1.5" />
                     <rect x="10" y="10" width="10" height="10" fill="#047857" rx="1" />
@@ -262,7 +394,10 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
           {/* ========================================================= */}
           {/* STAFF CARD BACK SIDE                                       */}
           {/* ========================================================= */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-slate-900 text-white border-2 border-emerald-800 flex flex-col justify-between [transform:rotateY(180deg)] backface-hidden shadow-2xl p-5 sm:p-6 select-text">
+          <div 
+            className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-slate-900 text-white border-2 border-emerald-800 flex flex-col justify-between backface-hidden shadow-2xl p-5 sm:p-6 select-text"
+            style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+          >
             
             {/* Magnetic Stripe Bar */}
             <div className="h-9 -mx-6 -mt-6 bg-slate-950 border-b border-emerald-500/20 flex items-center justify-between px-6">
@@ -322,6 +457,17 @@ export const StaffDigitalIDCard: React.FC<StaffDigitalIDCardProps> = () => {
 
         </motion.div>
       </div>
+
+      {/* Live Camera Snapshot Modal for Staff ID */}
+      <LiveCameraCaptureModal
+        isOpen={isCameraCaptureOpen}
+        onClose={() => setIsCameraCaptureOpen(false)}
+        onCapture={(photoData) => {
+          handlePhotoChange(photoData);
+          addNotification('Live Snapshot Saved', 'Your staff identity photo has been updated from camera.', 'success');
+        }}
+        studentName={staffName}
+      />
 
     </div>
   );

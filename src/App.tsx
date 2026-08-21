@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/common/Header';
+import { SplashScreen } from './components/common/SplashScreen';
 import { LoginModal } from './components/auth/LoginModal';
 import { StudentOnboardingModal } from './components/auth/StudentOnboardingModal';
 import { StaffAccountModal } from './components/auth/StaffAccountModal';
@@ -13,6 +14,7 @@ import { InstitutionalGateway } from './components/auth/InstitutionalGateway';
 import { DepartmentPromptModal } from './components/common/DepartmentPromptModal';
 import { RoleLiveVerifiedBadge, InstagramTickIcon, getRoleVerifiedConfig } from './components/common/RoleLiveVerifiedBadge';
 import { Department } from './types';
+import { AnimatePresence } from 'motion/react';
 import { 
   Building2, 
   ShieldCheck, 
@@ -27,6 +29,7 @@ import {
 function AppContent() {
   const { user, role, isAuthenticated, completeStudentOnboarding, createNewStaffAccount, addNotification } = useAuth();
   
+  const [showSplash, setShowSplash] = useState(true);
   const [loginModalMode, setLoginModalMode] = useState<'otp' | 'login' | 'signup' | 'council' | null>(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [showStaffCreateModal, setShowStaffCreateModal] = useState(false);
@@ -43,6 +46,13 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 flex flex-col font-sans">
       
+      {/* Entry Web Loading Screen with Unique SHOV Logo Animation */}
+      <AnimatePresence mode="wait">
+        {showSplash && (
+          <SplashScreen onComplete={() => setShowSplash(false)} />
+        )}
+      </AnimatePresence>
+
       {/* Dynamic Top Navbar - Restricted strictly to the authenticated persona only */}
       <Header
         onOpenLoginModal={(mode) => setLoginModalMode(mode || 'login')}

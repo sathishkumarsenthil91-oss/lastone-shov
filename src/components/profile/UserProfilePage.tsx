@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Property, StudentInquiry } from '../../types';
 import { 
@@ -7,6 +7,7 @@ import {
   removeSavedPropertyFromSupabase, 
   deletePropertyFromSupabase 
 } from '../../services/propertyService';
+import { uploadToSupabaseStorage } from '../../services/storageService';
 import { fetchInquiriesApi } from '../../services/api';
 import { PropertyListModal } from '../properties/PropertyListModal';
 import { 
@@ -31,7 +32,9 @@ import {
   Phone, 
   AlertCircle,
   Database,
-  ArrowRight
+  ArrowRight,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface UserProfilePageProps {
@@ -45,7 +48,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
   onNavigateToProperties,
   onNavigateToInquiries
 }) => {
-  const { user, role, isAuthenticated, addNotification } = useAuth();
+  const { user, role, isAuthenticated, addNotification, updateUserAvatar } = useAuth();
 
   const [activeSubTab, setActiveSubTab] = useState<'liked' | 'listed' | 'inquiries'>('liked');
   const [likedProperties, setLikedProperties] = useState<Property[]>([]);
@@ -53,6 +56,41 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
   const [userInquiries, setUserInquiries] = useState<StudentInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showListModal, setShowListModal] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const res = await uploadToSupabaseStorage(file, {
+        featureName: 'avatars',
+        itemId: user.id,
+        fileName: file.name,
+        userId: user.id
+      });
+      if (res.signedUrl) {
+        await updateUserAvatar(res.signedUrl);
+      } else {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          if (typeof reader.result === 'string') {
+            await updateUserAvatar(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.warn('Gallery upload fallback:', err);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
+    }
+  };
 
   // Load user data
   const loadUserData = async () => {
@@ -141,15 +179,43 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 animate-in fade-in">
       
+      {/* Hidden File Input for Profile Avatar */}
+      <input
+        type="file"
+        ref={galleryInputRef}
+        onChange={handleGalleryFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Profile Header Identity Card */}
       <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         
         <div className="flex items-center gap-4 sm:gap-6">
-          <img
-            src={user.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200'}
-            alt={user.name}
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover ring-4 ring-blue-500/20 shadow-md"
-          />
+          <div className="relative group">
+            <img
+              src={user.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200'}
+              alt={user.name}
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover ring-4 ring-blue-500/20 shadow-md"
+            />
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold gap-1 cursor-pointer"
+              title="Change Profile Photo from Gallery"
+            >
+              <ImageIcon className="w-5 h-5 text-sky-300" />
+              <span>Change</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md cursor-pointer ring-2 ring-white dark:ring-slate-900 transition hover:scale-110"
+              title="Upload Photo from Gallery"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
