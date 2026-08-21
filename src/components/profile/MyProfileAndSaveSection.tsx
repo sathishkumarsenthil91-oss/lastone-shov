@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { DepartmentPromptModal } from '../common/DepartmentPromptModal';
 import { Department } from '../../types';
-import { updateUserProfileInSupabase, uploadCampusImageToSupabase } from '../../services/campusSupabaseService';
+import { updateUserProfileInSupabase } from '../../services/campusSupabaseService';
+import { uploadToSupabaseStorage, deleteFileFromStorage, getSignedFileUrl } from '../../services/storageService';
 import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
 import { 
   User as UserIcon, 
@@ -25,7 +26,9 @@ import {
   Camera,
   Save,
   RefreshCw,
-  X
+  X,
+  Upload,
+  Trash2
 } from 'lucide-react';
 
 interface MyProfileAndSaveSectionProps {
@@ -44,10 +47,10 @@ export const MyProfileAndSaveSection: React.FC<MyProfileAndSaveSectionProps> = (
 
   // Edit profile state
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(user?.name || 'Aarav Sharma');
-  const [editPhone, setEditPhone] = useState(user?.phoneNumber || '+91 98765 43210');
-  const [editDesignation, setEditDesignation] = useState(user?.designation || 'B.Tech - 3rd Year');
-  const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=300');
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editPhone, setEditPhone] = useState(user?.phoneNumber || '');
+  const [editDesignation, setEditDesignation] = useState(user?.designation || '');
+  const [editAvatarUrl, setEditAvatarUrl] = useState(user?.avatarUrl || '');
   const [isSaving, setIsSaving] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
 
@@ -86,6 +89,60 @@ export const MyProfileAndSaveSection: React.FC<MyProfileAndSaveSectionProps> = (
     addNotification('Department Profile Updated', `Affiliated department set to ${dept.name} (${dept.code}) and saved to Supabase.`, 'success');
   };
 
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    setIsSaving(true);
+    const res = await uploadToSupabaseStorage(file, {
+      featureName: 'avatars',
+      itemId: user.id,
+      fileName: file.name,
+      userId: user.id
+    });
+    setIsSaving(false);
+
+    if (res.signedUrl) {
+      setEditAvatarUrl(res.signedUrl);
+      addNotification('Avatar Uploaded', 'New photo uploaded to private storage.', 'success');
+    }
+  };
+
+  const handleCameraCapture = async (dataUrl: string) => {
+    setShowCameraModal(false);
+    if (!user?.id) {
+      setEditAvatarUrl(dataUrl);
+      return;
+    }
+
+    setIsSaving(true);
+    const res = await uploadToSupabaseStorage(dataUrl, {
+      featureName: 'avatars',
+      itemId: user.id,
+      fileName: 'webcam_avatar',
+      userId: user.id
+    });
+    setIsSaving(false);
+
+    if (res.signedUrl) {
+      setEditAvatarUrl(res.signedUrl);
+    } else {
+      setEditAvatarUrl(dataUrl);
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (editAvatarUrl) {
+      await deleteFileFromStorage(editAvatarUrl);
+    }
+    const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Student'}`;
+    setEditAvatarUrl(defaultAvatar);
+    if (user?.id) {
+      await updateUserProfileInSupabase(user.id, { avatar_url: defaultAvatar });
+    }
+    addNotification('Avatar Reset', 'Profile avatar file removed from storage.', 'info');
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) {
@@ -95,13 +152,25 @@ export const MyProfileAndSaveSection: React.FC<MyProfileAndSaveSectionProps> = (
     }
 
     setIsSaving(true);
-    const uploadedAvatar = await uploadCampusImageToSupabase(editAvatarUrl, 'avatars');
+    let finalAvatar = editAvatarUrl;
+
+    if (finalAvatar && (finalAvatar.startsWith('data:') || finalAvatar.startsWith('blob:'))) {
+      const uploadRes = await uploadToSupabaseStorage(finalAvatar, {
+        featureName: 'avatars',
+        itemId: user.id,
+        userId: user.id,
+        fileName: 'avatar'
+      });
+      if (uploadRes.signedUrl) {
+        finalAvatar = uploadRes.signedUrl;
+      }
+    }
 
     const res = await updateUserProfileInSupabase(user.id, {
       name: editName,
       phone_number: editPhone,
       designation: editDesignation,
-      avatar_url: uploadedAvatar
+      avatar_url: finalAvatar
     });
 
     setIsSaving(false);
@@ -272,22 +341,38 @@ export const MyProfileAndSaveSection: React.FC<MyProfileAndSaveSectionProps> = (
                 </div>
 
                 <div>
-                  <label className="block text-slate-500 font-bold mb-1">Profile Photo URL or Live Snap</label>
-                  <div className="flex items-center gap-2">
+                  <label className="block text-slate-500 font-bold mb-1">Profile Photo (Storage Bucket: app-files)</label>
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     <input
                       type="url"
                       value={editAvatarUrl}
                       onChange={(e) => setEditAvatarUrl(e.target.value)}
-                      className="flex-1 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="https://... or upload below"
+                      className="flex-1 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
+                    <label className="px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer text-xs shrink-0">
+                      <Upload className="w-4 h-4 text-blue-500" />
+                      <span>Upload</span>
+                      <input type="file" accept="image/*" onChange={handleAvatarFileUpload} className="hidden" />
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowCameraModal(true)}
-                      className="px-3 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 font-bold hover:bg-blue-100 transition flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 font-bold hover:bg-blue-100 transition flex items-center gap-1 cursor-pointer text-xs shrink-0"
                     >
                       <Camera className="w-4 h-4" />
                       <span>Camera</span>
                     </button>
+                    {editAvatarUrl && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteAvatar}
+                        className="px-2.5 py-2.5 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition flex items-center gap-1 cursor-pointer text-xs shrink-0 border border-rose-500/20"
+                        title="Remove avatar file from storage"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

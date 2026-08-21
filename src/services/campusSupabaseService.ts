@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { INITIAL_HOD_CIRCULARS, INITIAL_VP_CIRCULARS } from '../data/circularsData';
 import { INITIAL_HOD_VP_POSTS, INITIAL_FINES, INITIAL_VERIFICATION_LOGS } from '../data/mockData';
+import { uploadToSupabaseStorage, getSignedFileUrl, deleteFileFromStorage } from './storageService';
 
 // ============================================================================
 // 1. USER PROFILES & PROFILE UPDATES
@@ -276,37 +277,49 @@ export async function createBroadcastPhotoInSupabase(post: Partial<HodVpPost>): 
   }
 }
 
-// Upload base64 / blob image to Supabase storage or return optimized data URI
+// Upload image or document to Supabase storage private bucket 'app-files'
 export async function uploadCampusImageToSupabase(
   imageDataUri: string,
-  folder: 'broadcasts' | 'avatars' | 'scans' = 'broadcasts'
+  folder: 'broadcasts' | 'avatars' | 'scans' | 'attachments' | 'circulars' = 'broadcasts',
+  itemId: string = 'general'
 ): Promise<string> {
   try {
-    // If not a data URI, return as is
-    if (!imageDataUri.startsWith('data:')) return imageDataUri;
+    if (!imageDataUri) return '';
+    // Upload into 'app-files' private bucket
+    const result = await uploadToSupabaseStorage(imageDataUri, {
+      featureName: folder,
+      itemId,
+      expiresInSeconds: 60 * 60 * 24 * 7 // 7 days signed URL
+    });
 
-    // Convert data URI to Blob
-    const response = await fetch(imageDataUri);
-    const blob = await response.blob();
-    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('campus-dispatches')
-      .upload(fileName, blob, {
-        contentType: 'image/jpeg',
-        upsert: true
-      });
-
-    if (uploadError) {
-      console.warn('Supabase storage upload notice (using direct payload):', uploadError.message);
-      return imageDataUri; // Graceful fallback
+    if (result.success && result.signedUrl) {
+      return result.signedUrl;
     }
-
-    const { data } = supabase.storage.from('campus-dispatches').getPublicUrl(fileName);
-    return data.publicUrl || imageDataUri;
+    return result.signedUrl || imageDataUri;
   } catch (e) {
     console.warn('Storage fallback:', e);
     return imageDataUri;
+  }
+}
+
+// Delete broadcast photo from Supabase DB and remove file from Storage bucket
+export async function deleteBroadcastPhotoFromSupabase(postId: string, photoUrl?: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (photoUrl) {
+      await deleteFileFromStorage(photoUrl);
+    }
+    const { error } = await supabase
+      .from('broadcast_photos')
+      .delete()
+      .eq('id', postId);
+
+    if (error) {
+      console.warn('Failed to delete broadcast post from DB:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error deleting broadcast post' };
   }
 }
 

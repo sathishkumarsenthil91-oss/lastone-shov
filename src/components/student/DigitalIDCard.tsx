@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Student } from '../../types';
 import { ImageLightbox } from '../common/ImageLightbox';
 import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
 import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
 import { motion, AnimatePresence } from 'motion/react';
 import { rohitKumarPhoto, avsCampusPhoto, INITIAL_STUDENTS } from '../../data/mockData';
+import { uploadToSupabaseStorage } from '../../services/storageService';
 import { 
   ShieldCheck, 
   RotateCw, 
@@ -34,7 +35,8 @@ import {
   Activity,
   Layers,
   Copy,
-  Pencil
+  Pencil,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface DigitalIDCardProps {
@@ -61,6 +63,8 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [qrType, setQrType] = useState<'turnstile' | 'biometric' | 'iso'>('turnstile');
   const [copiedToken, setCopiedToken] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   const displayDept = customDepartmentName || student.departmentName || student.department || 'Computer Science & Engineering';
   const photoToUse = student.photoUrl || rohitKumarPhoto;
@@ -71,6 +75,39 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
     navigator.clipboard?.writeText?.(qrPayload);
     setCopiedToken(true);
     setTimeout(() => setCopiedToken(false), 2000);
+  };
+
+  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const res = await uploadToSupabaseStorage(file, {
+        featureName: 'avatars',
+        itemId: student.id || student.registerNumber,
+        fileName: file.name,
+        userId: student.id || student.registerNumber
+      });
+      if (res.signedUrl) {
+        onPhotoUpdated?.(res.signedUrl);
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            onPhotoUpdated?.(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.warn('Gallery upload fallback:', err);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -309,23 +346,28 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
         </div>
       </motion.div>
 
-      {/* 3D FLIP CONTAINER WITH LUXURY ENTRANCE MOTION & SPRING SETTLE */}
-      <motion.div 
-        initial={{ opacity: 0, y: 35, scale: 0.92, rotateX: 14 }}
-        animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
-        transition={{ duration: 0.8, type: 'spring', stiffness: 170, damping: 20 }}
-        className="relative w-full min-h-[320px] sm:min-h-[330px] aspect-auto sm:aspect-[1.58/1] perspective-1000 group/card"
-      >
+      {/* 3D FLIP CONTAINER - STABILIZED WITH FIXED DIMS & PURE 3D ROTATION WITHOUT DOWNSIDE DRIFT */}
+      {/* Hidden Gallery Input for ID Card */}
+      <input
+        type="file"
+        ref={galleryInputRef}
+        onChange={handleGalleryFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
+      <div className="w-full relative min-h-[350px] sm:min-h-[360px] h-[350px] sm:h-[360px] perspective-1000">
         <motion.div
           animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.7, type: 'spring', stiffness: 220, damping: 25 }}
-          className="w-full h-full min-h-[320px] sm:min-h-[330px] relative transform-style-3d shadow-2xl rounded-3xl"
+          transition={{ duration: 0.65, ease: [0.4, 0.0, 0.2, 1] }}
+          className="w-full h-full relative transform-style-3d shadow-2xl rounded-3xl"
+          style={{ transformOrigin: 'center center' }}
         >
           
           {/* ========================================================= */}
           {/* CARD FRONT SIDE (Ultra Clean Institutional White Design)  */}
           {/* ========================================================= */}
-          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text relative">
+          <div className="absolute inset-0 w-full h-full rounded-3xl overflow-hidden bg-white text-slate-900 border-2 border-slate-200/90 flex flex-col justify-between backface-hidden shadow-2xl select-text">
             
             {/* Holographic Entry Light Sheen Sweep */}
             <motion.div
@@ -390,14 +432,24 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
                     </div>
                   </div>
 
+                  {/* Dual Photo Controls: Gallery Pick & Live Camera */}
                   {onPhotoUpdated && (
-                    <button
-                      onClick={() => setIsCameraCaptureOpen(true)}
-                      className="absolute -bottom-2 -right-2 p-1.5 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-all cursor-pointer ring-2 ring-white"
-                      title="Update Live Photo"
-                    >
-                      <Camera className="w-3 h-3" />
-                    </button>
+                    <div className="absolute -bottom-2 -right-2 flex items-center gap-1">
+                      <button
+                        onClick={() => galleryInputRef.current?.click()}
+                        className="p-1.5 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
+                        title="Upload Photo from Device Gallery"
+                      >
+                        <ImageIcon className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setIsCameraCaptureOpen(true)}
+                        className="p-1.5 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 transition-all cursor-pointer ring-2 ring-white hover:scale-110"
+                        title="Capture Live Snapshot / Open Camera Modal"
+                      >
+                        <Camera className="w-3 h-3" />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -727,7 +779,7 @@ export const DigitalIDCard: React.FC<DigitalIDCardProps> = ({
           </div>
 
         </motion.div>
-      </motion.div>
+      </div>
 
     </div>
   );

@@ -42,13 +42,13 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
   // Selected Role
   const [selectedRole, setSelectedRole] = useState<UserRole>('STUDENT');
   
-  // Sign-in fields
+  // Sign-in fields (empty by default - no auto-typing)
   const [selectedDept, setSelectedDept] = useState<DepartmentCode>('CSE');
-  const [identifier, setIdentifier] = useState('23CS001');
-  const [password, setPassword] = useState('student@2026');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
 
-  // OTP Login states
-  const [otpEmail, setOtpEmail] = useState('student.cse@avsct.edu.in');
+  // OTP Login states (empty by default - no auto-typing)
+  const [otpEmail, setOtpEmail] = useState('');
   const [otpToken, setOtpToken] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [generatedDemoOtp, setGeneratedDemoOtp] = useState('');
@@ -174,9 +174,9 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
 
   const handleRoleSelect = (roleObj: typeof roleCards[0]) => {
     setSelectedRole(roleObj.role);
-    setIdentifier(roleObj.defaultId);
-    setPassword(roleObj.defaultPass);
-    setOtpEmail(roleObj.defaultEmail);
+    setIdentifier('');
+    setPassword('');
+    setOtpEmail('');
     setOtpSent(false);
     setOtpToken('');
     setAuthError(null);
@@ -228,7 +228,7 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
       setLoading(false);
       
       if (error) {
-        setAuthSuccessMessage(`Verification OTP sent to ${emailToUse}. (Demo verification code: ${code})`);
+        setAuthSuccessMessage(`Verification OTP sent to ${emailToUse}. Please check your inbox.`);
         addNotification('OTP Sent', `Verification code sent to ${emailToUse}`, 'success');
       } else {
         setAuthSuccessMessage(`Verification OTP code sent to ${emailToUse}. Please enter the 6-digit code.`);
@@ -240,7 +240,7 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
       setOtpSent(true);
       setResendCountdown(30);
       setLoading(false);
-      setAuthSuccessMessage(`OTP sent to ${emailToUse}. (Demo code: ${code})`);
+      setAuthSuccessMessage(`OTP sent to ${emailToUse}. Please check your inbox.`);
       addNotification('OTP Sent', `Verification code sent to ${emailToUse}`, 'success');
     }
   };
@@ -570,29 +570,6 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
               </div>
             )}
 
-            {/* Quick Test Demo Bar */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                  Quick Access Demo: Use official pre-configured credentials for testing.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIdentifier(selectedRoleConfig.defaultId);
-                  setPassword(selectedRoleConfig.defaultPass);
-                  setOtpEmail(selectedRoleConfig.defaultEmail);
-                  setAuthError(null);
-                  addNotification('Loaded', `Filled test credentials for ${selectedRoleConfig.title}`, 'info');
-                }}
-                className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer transition shrink-0"
-              >
-                <span>Fill Test Credentials</span>
-              </button>
-            </div>
-
             {/* Department Selection for HOD */}
             {selectedRole === 'HOD' && (
               <div className="space-y-1.5">
@@ -630,11 +607,11 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
                     <div className="relative flex-1">
                       <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-4" />
                       <input
-                        type="email"
+                        type="text"
                         required
                         value={otpEmail}
                         onChange={(e) => setOtpEmail(e.target.value)}
-                        placeholder="e.g. 23cs001@avsct.edu.in"
+                        placeholder={selectedRoleConfig.idPlaceholder}
                         className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-mono font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -663,15 +640,6 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
                         <Hash className="w-4 h-4 text-blue-600" />
                         <span>Enter 6-Digit OTP Verification Code</span>
                       </label>
-                      {generatedDemoOtp && (
-                        <button
-                          type="button"
-                          onClick={() => setOtpToken(generatedDemoOtp)}
-                          className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                        >
-                          Auto-fill: {generatedDemoOtp}
-                        </button>
-                      )}
                     </div>
 
                     <div className="relative">

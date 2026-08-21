@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { StudentInquiry, AuthorityTarget, DepartmentCode, InquiryCategory, ElectionCouncilRole } from '../../types';
 import { fetchInquiriesApi, submitInquiryApi, sendInquiryMessageApi, updateInquiryStatusApi } from '../../services/api';
 import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
+import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
 import { 
   Send, 
   Camera, 
@@ -27,7 +28,9 @@ import {
   Maximize2,
   X,
   RefreshCw,
-  FileCheck
+  FileCheck,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -108,15 +111,62 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
     }
   };
 
-  const handlePhotoCaptured = (dataUrl: string) => {
-    if (cameraContext === 'NEW_INQUIRY') {
-      setCapturedPhotoUrl(dataUrl);
-      addNotification('Live Photo Captured', 'Evidence photo attached to inquiry successfully.', 'success');
-    } else {
-      setReplyPhotoUrl(dataUrl);
-      addNotification('Live Photo Captured', 'Photo ready to share in discussion thread.', 'success');
-    }
+  const handlePhotoCaptured = async (dataUrl: string) => {
     setShowCameraModal(false);
+    if (cameraContext === 'NEW_INQUIRY') {
+      const uploadRes = await uploadToSupabaseStorage(dataUrl, {
+        featureName: 'inquiries',
+        itemId: 'evidence',
+        fileName: 'inquiry_proof',
+        expiresInSeconds: 60 * 60 * 24 * 7
+      });
+      setCapturedPhotoUrl(uploadRes.signedUrl || dataUrl);
+      addNotification('Live Photo Captured', 'Evidence photo uploaded to private storage.', 'success');
+    } else {
+      const uploadRes = await uploadToSupabaseStorage(dataUrl, {
+        featureName: 'inquiries',
+        itemId: selectedInquiry?.id || 'reply',
+        fileName: 'reply_proof',
+        expiresInSeconds: 60 * 60 * 24 * 7
+      });
+      setReplyPhotoUrl(uploadRes.signedUrl || dataUrl);
+      addNotification('Live Photo Captured', 'Photo uploaded and ready to share.', 'success');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, context: 'NEW_INQUIRY' | 'CHAT_REPLY') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadRes = await uploadToSupabaseStorage(file, {
+      featureName: 'inquiries',
+      itemId: context === 'NEW_INQUIRY' ? 'evidence' : (selectedInquiry?.id || 'reply'),
+      fileName: file.name,
+      expiresInSeconds: 60 * 60 * 24 * 7
+    });
+
+    if (context === 'NEW_INQUIRY') {
+      setCapturedPhotoUrl(uploadRes.signedUrl || '');
+      addNotification('File Attached', 'Document / Photo uploaded to Supabase Storage.', 'success');
+    } else {
+      setReplyPhotoUrl(uploadRes.signedUrl || '');
+      addNotification('File Attached', 'Document / Photo ready to send.', 'success');
+    }
+  };
+
+  const handleDeleteCapturedPhoto = async () => {
+    if (capturedPhotoUrl) {
+      await deleteFileFromStorage(capturedPhotoUrl);
+      setCapturedPhotoUrl(null);
+      addNotification('Photo Removed', 'Attachment deleted from private storage.', 'info');
+    }
+  };
+
+  const handleDeleteReplyPhoto = async () => {
+    if (replyPhotoUrl) {
+      await deleteFileFromStorage(replyPhotoUrl);
+      setReplyPhotoUrl(null);
+    }
   };
 
   const handleCreateInquiry = async (e: React.FormEvent) => {
@@ -128,6 +178,16 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
 
     setIsSubmitting(true);
     try {
+      let finalPhoto = capturedPhotoUrl;
+      if (finalPhoto && (finalPhoto.startsWith('data:') || finalPhoto.startsWith('blob:'))) {
+        const uploadRes = await uploadToSupabaseStorage(finalPhoto, {
+          featureName: 'inquiries',
+          itemId: 'evidence',
+          fileName: 'proof'
+        });
+        if (uploadRes.signedUrl) finalPhoto = uploadRes.signedUrl;
+      }
+
       const payload: Partial<StudentInquiry> = {
         studentId: user?.studentId || 'st-001',
         studentName: user?.name || 'Aarav Sharma',
@@ -140,7 +200,7 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
         category,
         subject,
         message,
-        capturedPhotoUrl: capturedPhotoUrl || undefined,
+        capturedPhotoUrl: finalPhoto || undefined,
         priority
       };
 
@@ -152,7 +212,7 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
         setSubject('');
         setMessage('');
         setCapturedPhotoUrl(null);
-        addNotification('Inquiry Dispatched', `Your inquiry has been submitted to ${targetAuthority}.`, 'success');
+        addNotification('Inquiry Dispatched', `Your inquiry has been submitted to ${targetAuthority} with private storage attachments.`, 'success');
       } else {
         addNotification('Submission Failed', result.error || 'Unable to submit inquiry.', 'error');
       }
@@ -169,12 +229,22 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
 
     setIsSendingReply(true);
     try {
+      let finalReplyPhoto = replyPhotoUrl;
+      if (finalReplyPhoto && (finalReplyPhoto.startsWith('data:') || finalReplyPhoto.startsWith('blob:'))) {
+        const uploadRes = await uploadToSupabaseStorage(finalReplyPhoto, {
+          featureName: 'inquiries',
+          itemId: selectedInquiry.id,
+          fileName: 'reply_attachment'
+        });
+        if (uploadRes.signedUrl) finalReplyPhoto = uploadRes.signedUrl;
+      }
+
       const payload = {
         senderId: user?.id || 'st-001',
         senderName: user?.name || 'Student',
         senderRole: (user?.role === 'STUDENT' ? 'STUDENT' : user?.role === 'HOD' ? 'HOD' : user?.role === 'VICE_PRINCIPAL' ? 'VICE_PRINCIPAL' : 'ADMIN') as any,
         message: replyMessage,
-        photoUrl: replyPhotoUrl || undefined
+        photoUrl: finalReplyPhoto || undefined
       };
 
       const result = await sendInquiryMessageApi(selectedInquiry.id, payload);
@@ -601,19 +671,28 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
                   <div className="flex items-center gap-3 p-2 rounded-xl bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
                     <img src={replyPhotoUrl} alt="Reply preview" className="w-12 h-12 rounded-lg object-cover" />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-blue-900 dark:text-blue-300">Live Photo Attached</p>
-                      <p className="text-[10px] text-blue-700 dark:text-blue-400">Ready to transmit with your message</p>
+                      <p className="text-xs font-bold text-blue-900 dark:text-blue-300">Attachment Uploaded</p>
+                      <p className="text-[10px] text-blue-700 dark:text-blue-400">Stored in Supabase app-files</p>
                     </div>
                     <button
-                      onClick={() => setReplyPhotoUrl(null)}
+                      onClick={handleDeleteReplyPhoto}
                       className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
+                      title="Remove attachment from storage"
                     >
-                      <X className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 )}
 
                 <div className="flex items-center gap-2">
+                  <label
+                    className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shrink-0"
+                    title="Upload File to Supabase Storage"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'CHAT_REPLY')} className="hidden" />
+                  </label>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -805,26 +884,33 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
 
                 {/* Live Camera Photo Shoot Attachment */}
                 <div className="space-y-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="space-y-0.5">
                       <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                         <Camera className="w-4 h-4 text-blue-600" />
-                        <span>Live Photo Shoot Evidence</span>
+                        <span>Evidence & Attachment (Bucket: app-files)</span>
                       </span>
-                      <p className="text-[11px] text-slate-500">Capture proof live via device camera or attach photo.</p>
+                      <p className="text-[11px] text-slate-500">Take live camera proof or upload evidence document.</p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCameraContext('NEW_INQUIRY');
-                        setShowCameraModal(true);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>{capturedPhotoUrl ? 'Re-take Photo' : 'Take Live Photo'}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all">
+                        <Upload className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Upload File</span>
+                        <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'NEW_INQUIRY')} className="hidden" />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCameraContext('NEW_INQUIRY');
+                          setShowCameraModal(true);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{capturedPhotoUrl ? 'Re-take Photo' : 'Take Live Photo'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {capturedPhotoUrl && (
@@ -832,11 +918,11 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
                       <img src={capturedPhotoUrl} alt="Captured evidence" className="w-full h-36 object-cover" />
                       <button
                         type="button"
-                        onClick={() => setCapturedPhotoUrl(null)}
+                        onClick={handleDeleteCapturedPhoto}
                         className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/80 text-white hover:bg-rose-600 transition-colors"
-                        title="Remove photo"
+                        title="Remove photo from storage"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}

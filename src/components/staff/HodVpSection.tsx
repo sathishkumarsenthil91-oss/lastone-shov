@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { HodVpPost, Department, DepartmentCode, PhotoAudience } from '../../types';
 import { INITIAL_HOD_VP_POSTS, INITIAL_DEPARTMENTS } from '../../data/mockData';
 import { fetchHodVpPostsApi, createHodVpPostApi } from '../../services/api';
+import { deleteBroadcastPhotoFromSupabase } from '../../services/campusSupabaseService';
+import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { ImageLightbox } from '../common/ImageLightbox';
 import { StaffAccountModal } from '../auth/StaffAccountModal';
@@ -27,7 +29,8 @@ import {
   Database,
   Crown,
   Upload,
-  CheckCircle2
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 
 export const HodVpSection: React.FC = () => {
@@ -103,22 +106,53 @@ export const HodVpSection: React.FC = () => {
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likesCount: p.likesCount + 1 } : p));
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPostPhotoUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+
+    // Upload to Supabase Storage app-files bucket under ${auth.uid()}/dispatches/draft/...
+    const uploadRes = await uploadToSupabaseStorage(file, {
+      featureName: 'dispatches',
+      itemId: 'broadcast',
+      fileName: file.name,
+      expiresInSeconds: 60 * 60 * 24 * 7
+    });
+
+    if (uploadRes.signedUrl) {
+      setPostPhotoUrl(uploadRes.signedUrl);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setPostPhotoUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeletePost = async (postId: string, photoUrl?: string) => {
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    await deleteBroadcastPhotoFromSupabase(postId, photoUrl);
+    addNotification('Post Removed', 'Broadcast item and stored files removed from Supabase.', 'info');
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postTitle || !postContent) return;
     setIsSubmitting(true);
+
+    let finalPhotoUrl = postPhotoUrl;
+    if (finalPhotoUrl && (finalPhotoUrl.startsWith('data:') || finalPhotoUrl.startsWith('blob:'))) {
+      const uploadRes = await uploadToSupabaseStorage(finalPhotoUrl, {
+        featureName: 'dispatches',
+        itemId: `post_${Date.now()}`,
+        fileName: 'dispatch_photo'
+      });
+      if (uploadRes.signedUrl) {
+        finalPhotoUrl = uploadRes.signedUrl;
+      }
+    }
 
     const newPostData: Partial<HodVpPost> = {
       authorName: postAuthorName,
@@ -128,7 +162,7 @@ export const HodVpSection: React.FC = () => {
       authorPhotoUrl: user?.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
       title: postTitle,
       content: postContent,
-      photoUrl: postPhotoUrl,
+      photoUrl: finalPhotoUrl,
       attachmentName: postAttachmentName || undefined,
       visibility: postVisibility,
       isConfidential: postVisibility === 'HOD_VP_CONFIDENTIAL',
@@ -162,7 +196,8 @@ export const HodVpSection: React.FC = () => {
     setShowNewPostModal(false);
     setPostTitle('');
     setPostContent('');
-    addNotification('Photo & Circular Broadcasted', `Shared with [${postVisibility}] audience permission.`, 'success');
+    setPostPhotoUrl('');
+    addNotification('Photo & Circular Broadcasted', `Stored to Supabase and shared with [${postVisibility}] audience permission.`, 'success');
   };
 
   const filteredPosts = posts.filter(p => {
@@ -355,8 +390,21 @@ export const HodVpSection: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
+                <div className="flex items-center gap-2">
                   {getVisibilityBadge(post.visibility || 'ALL')}
+                  {(role === 'STAFF' || role === 'ADMIN' || user?.name === post.authorName) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePost(post.id, post.photoUrl);
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition"
+                      title="Delete post and storage file"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 

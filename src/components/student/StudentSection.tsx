@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { DigitalIDCard } from './DigitalIDCard';
@@ -9,6 +9,7 @@ import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
 import { Student, Fine, Payment } from '../../types';
 import { INITIAL_STUDENTS, INITIAL_FINES, INITIAL_PAYMENTS } from '../../data/mockData';
 import { fetchFinesApi } from '../../services/api';
+import { uploadToSupabaseStorage } from '../../services/storageService';
 import { 
   GraduationCap, 
   CreditCard, 
@@ -36,7 +37,9 @@ import {
   Image as ImageIcon,
   Check,
   X,
-  DoorOpen
+  DoorOpen,
+  Camera,
+  Upload
 } from 'lucide-react';
 
 export const StudentSection: React.FC = () => {
@@ -627,15 +630,68 @@ export const StudentSection: React.FC = () => {
                 </div>
               </div>
 
+              {/* Profile Photo Selection Row */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Photo Image URL</label>
-                <input
-                  type="url"
-                  value={editForm.photoUrl}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, photoUrl: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
-                />
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  ID Profile Photo (Gallery & Camera)
+                </label>
+                
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <img
+                    src={editForm.photoUrl || INITIAL_STUDENTS[0].photoUrl}
+                    alt="Preview"
+                    className="w-14 h-14 rounded-xl object-cover ring-2 ring-blue-500/30"
+                  />
+                  
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <label className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>Choose Gallery Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const res = await uploadToSupabaseStorage(file, {
+                                featureName: 'avatars',
+                                itemId: student.id || 'student',
+                                fileName: file.name,
+                                userId: student.id || 'student'
+                              });
+                              if (res.signedUrl) {
+                                setEditForm(prev => ({ ...prev, photoUrl: res.signedUrl }));
+                                addNotification('Gallery Photo Attached', 'Image updated for ID card.', 'success');
+                              } else {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  if (typeof reader.result === 'string') {
+                                    setEditForm(prev => ({ ...prev, photoUrl: reader.result as string }));
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            } catch (err) {
+                              console.warn('Gallery select error:', err);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <input
+                        type="url"
+                        value={editForm.photoUrl}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, photoUrl: e.target.value }))}
+                        placeholder="Or paste photo URL..."
+                        className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500">Pick from camera roll, device files, or web URL</p>
+                  </div>
+                </div>
               </div>
 
               <div>

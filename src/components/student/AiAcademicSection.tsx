@@ -28,6 +28,7 @@ import {
 import { DepartmentCode, AiChatMessage } from '../../types';
 import { sendGeminiChatApi } from '../../services/api';
 import { saveMessageToSupabase } from '../../services/supabase';
+import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
 
 // Markdown parser for Gemini response formatting
 function renderGeminiMarkdown(
@@ -360,14 +361,33 @@ export const AiAcademicSection: React.FC = () => {
     setIsAiLoading(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageBase64(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Upload to private app-files bucket under ${auth.uid()}/academic/${activeSessionId}/${uuid}.${ext}
+      const uploadRes = await uploadToSupabaseStorage(file, {
+        featureName: 'academic',
+        itemId: activeSessionId || 'general',
+        fileName: file.name,
+        expiresInSeconds: 60 * 60 * 24 * 7
+      });
+
+      if (uploadRes.signedUrl) {
+        setImageBase64(uploadRes.signedUrl);
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImageBase64(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleRemoveAttachedImage = async () => {
+    if (imageBase64) {
+      await deleteFileFromStorage(imageBase64);
+      setImageBase64(null);
     }
   };
 
@@ -706,10 +726,10 @@ export const AiAcademicSection: React.FC = () => {
             {imageBase64 && (
               <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <ImageIcon className="w-4 h-4 text-blue-400" />
-                  <span>Image attached</span>
+                  <img src={imageBase64} alt="Attached" className="w-8 h-8 rounded-lg object-cover border border-slate-700" />
+                  <span>Image attached (Supabase Storage)</span>
                 </div>
-                <button onClick={() => setImageBase64(null)} className="text-slate-400 hover:text-white">
+                <button onClick={handleRemoveAttachedImage} className="text-slate-400 hover:text-rose-400 p-1" title="Delete from storage">
                   <X className="w-4 h-4" />
                 </button>
               </div>

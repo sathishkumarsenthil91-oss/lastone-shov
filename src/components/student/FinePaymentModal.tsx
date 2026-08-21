@@ -28,8 +28,8 @@ export const FinePaymentModal: React.FC<FinePaymentModalProps> = ({
   onPaymentSuccess
 }) => {
   const [method, setMethod] = useState<'UPI' | 'CARD' | 'NETBANKING'>('UPI');
-  const [upiId, setUpiId] = useState('student@okicici');
-  const [cardNumber, setCardNumber] = useState('4532 •••• •••• 8812');
+  const [upiId, setUpiId] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [completedPayment, setCompletedPayment] = useState<Payment | null>(null);
@@ -160,6 +160,7 @@ export const FinePaymentModal: React.FC<FinePaymentModalProps> = ({
                   <input
                     type="text"
                     value={upiId}
+                    placeholder="e.g. yourname@okhdfcbank"
                     onChange={(e) => setUpiId(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -172,6 +173,7 @@ export const FinePaymentModal: React.FC<FinePaymentModalProps> = ({
                   <input
                     type="text"
                     value={cardNumber}
+                    placeholder="Enter 16-digit card number"
                     onChange={(e) => setCardNumber(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />

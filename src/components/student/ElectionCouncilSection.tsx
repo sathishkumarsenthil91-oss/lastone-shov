@@ -4,6 +4,7 @@ import { ElectionMember, StudentInquiry, ElectionCouncilRole } from '../../types
 import { INITIAL_USERS } from '../../data/mockData';
 import { fetchElectionMembersApi, fetchInquiriesApi, submitInquiryApi, sendInquiryMessageApi } from '../../services/api';
 import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
+import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
 import { 
   Users, 
   Crown, 
@@ -26,7 +27,9 @@ import {
   HelpCircle,
   FileText,
   Flame,
-  Award
+  Award,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -98,15 +101,62 @@ export const ElectionCouncilSection: React.FC = () => {
     loadInquiriesForMember(member.id);
   };
 
-  const handlePhotoCaptured = (dataUrl: string) => {
-    if (cameraPurpose === 'NEW_GRIEVANCE') {
-      setNewPhotoUrl(dataUrl);
-      addNotification('Live Photo Captured', 'Evidence photo attached to council grievance.', 'success');
-    } else {
-      setChatPhotoUrl(dataUrl);
-      addNotification('Live Photo Captured', 'Photo ready to share in chat thread.', 'success');
-    }
+  const handlePhotoCaptured = async (dataUrl: string) => {
     setShowCameraModal(false);
+    if (cameraPurpose === 'NEW_GRIEVANCE') {
+      const uploadRes = await uploadToSupabaseStorage(dataUrl, {
+        featureName: 'council',
+        itemId: selectedMember?.id || 'general',
+        fileName: 'grievance_proof',
+        expiresInSeconds: 60 * 60 * 24 * 7
+      });
+      setNewPhotoUrl(uploadRes.signedUrl || dataUrl);
+      addNotification('Live Photo Captured', 'Evidence photo uploaded to Supabase Storage.', 'success');
+    } else {
+      const uploadRes = await uploadToSupabaseStorage(dataUrl, {
+        featureName: 'council',
+        itemId: activeInquiry?.id || selectedMember?.id || 'chat',
+        fileName: 'chat_proof',
+        expiresInSeconds: 60 * 60 * 24 * 7
+      });
+      setChatPhotoUrl(uploadRes.signedUrl || dataUrl);
+      addNotification('Live Photo Captured', 'Photo uploaded and ready to share in chat thread.', 'success');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, purpose: 'NEW_GRIEVANCE' | 'CHAT_PHOTO') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadRes = await uploadToSupabaseStorage(file, {
+      featureName: 'council',
+      itemId: purpose === 'NEW_GRIEVANCE' ? (selectedMember?.id || 'grievance') : (activeInquiry?.id || 'chat'),
+      fileName: file.name,
+      expiresInSeconds: 60 * 60 * 24 * 7
+    });
+
+    if (purpose === 'NEW_GRIEVANCE') {
+      setNewPhotoUrl(uploadRes.signedUrl || '');
+      addNotification('File Attached', 'Document / Photo uploaded to Supabase Storage.', 'success');
+    } else {
+      setChatPhotoUrl(uploadRes.signedUrl || '');
+      addNotification('File Attached', 'Document / Photo ready to send.', 'success');
+    }
+  };
+
+  const handleDeleteNewPhoto = async () => {
+    if (newPhotoUrl) {
+      await deleteFileFromStorage(newPhotoUrl);
+      setNewPhotoUrl(null);
+      addNotification('Photo Removed', 'Attachment removed from storage.', 'info');
+    }
+  };
+
+  const handleDeleteChatPhoto = async () => {
+    if (chatPhotoUrl) {
+      await deleteFileFromStorage(chatPhotoUrl);
+      setChatPhotoUrl(null);
+    }
   };
 
   const handleSendChatMessage = async () => {
@@ -120,12 +170,22 @@ export const ElectionCouncilSection: React.FC = () => {
 
     setIsSending(true);
     try {
+      let finalChatPhoto = chatPhotoUrl;
+      if (finalChatPhoto && (finalChatPhoto.startsWith('data:') || finalChatPhoto.startsWith('blob:'))) {
+        const uploadRes = await uploadToSupabaseStorage(finalChatPhoto, {
+          featureName: 'council',
+          itemId: activeInquiry.id,
+          fileName: 'chat_photo'
+        });
+        if (uploadRes.signedUrl) finalChatPhoto = uploadRes.signedUrl;
+      }
+
       const payload = {
         senderId: user?.id || 'st-001',
         senderName: user?.name || 'Aarav Sharma',
         senderRole: (user?.role === 'STUDENT' ? 'STUDENT' : 'COUNCIL_MEMBER') as any,
         message: chatMessage,
-        photoUrl: chatPhotoUrl || undefined
+        photoUrl: finalChatPhoto || undefined
       };
 
       const result = await sendInquiryMessageApi(activeInquiry.id, payload);
@@ -153,6 +213,16 @@ export const ElectionCouncilSection: React.FC = () => {
 
     setIsSending(true);
     try {
+      let finalPhoto = photo;
+      if (finalPhoto && (finalPhoto.startsWith('data:') || finalPhoto.startsWith('blob:'))) {
+        const uploadRes = await uploadToSupabaseStorage(finalPhoto, {
+          featureName: 'council',
+          itemId: selectedMember.id,
+          fileName: 'direct_inquiry_photo'
+        });
+        if (uploadRes.signedUrl) finalPhoto = uploadRes.signedUrl;
+      }
+
       const payload: Partial<StudentInquiry> = {
         studentId: user?.studentId || 'st-001',
         studentName: user?.name || 'Aarav Sharma',
@@ -164,7 +234,7 @@ export const ElectionCouncilSection: React.FC = () => {
         category: 'ELECTION_COUNCIL',
         subject: `Direct Inquiry to ${selectedMember.designationTitle}`,
         message: msg,
-        capturedPhotoUrl: photo || undefined,
+        capturedPhotoUrl: finalPhoto || undefined,
         priority: 'MEDIUM'
       };
 
@@ -554,21 +624,30 @@ export const ElectionCouncilSection: React.FC = () => {
               <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
                 {chatPhotoUrl && (
                   <div className="flex items-center gap-3 p-2 rounded-xl bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800">
-                    <img src={chatPhotoUrl} alt="Attached live photo" className="w-12 h-12 rounded-lg object-cover" />
+                    <img src={chatPhotoUrl} alt="Attached photo" className="w-12 h-12 rounded-lg object-cover" />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-amber-900 dark:text-amber-300">Live Photo Shoot Attached</p>
-                      <p className="text-[10px] text-amber-700 dark:text-amber-400">Will be shared in this council thread</p>
+                      <p className="text-xs font-bold text-amber-900 dark:text-amber-300">Attachment Uploaded</p>
+                      <p className="text-[10px] text-amber-700 dark:text-amber-400">Stored in Supabase app-files</p>
                     </div>
                     <button
-                      onClick={() => setChatPhotoUrl(null)}
+                      onClick={handleDeleteChatPhoto}
                       className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer"
+                      title="Remove attachment from storage"
                     >
-                      <X className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 )}
 
                 <div className="flex items-center gap-2">
+                  <label
+                    className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-amber-600 dark:text-amber-400 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shrink-0"
+                    title="Upload File to Supabase Storage"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'CHAT_PHOTO')} className="hidden" />
+                  </label>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -684,21 +763,28 @@ export const ElectionCouncilSection: React.FC = () => {
 
                 {/* Live Camera Photo Proof */}
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                       <Camera className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Attach Live Photo Proof</span>
+                      <span>Attach Photo Proof (app-files)</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCameraPurpose('NEW_GRIEVANCE');
-                        setShowCameraModal(true);
-                      }}
-                      className="px-3 py-1 rounded-xl bg-amber-500 text-slate-950 font-bold text-[11px] cursor-pointer"
-                    >
-                      {newPhotoUrl ? 'Re-take Photo' : 'Take Live Photo'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <label className="px-3 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-[11px] cursor-pointer transition-all">
+                        <Upload className="w-3 h-3 text-amber-500 inline mr-1" />
+                        <span>Upload</span>
+                        <input type="file" accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'NEW_GRIEVANCE')} className="hidden" />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCameraPurpose('NEW_GRIEVANCE');
+                          setShowCameraModal(true);
+                        }}
+                        className="px-3 py-1 rounded-xl bg-amber-500 text-slate-950 font-bold text-[11px] cursor-pointer"
+                      >
+                        {newPhotoUrl ? 'Re-take Photo' : 'Take Live Photo'}
+                      </button>
+                    </div>
                   </div>
 
                   {newPhotoUrl && (
@@ -706,10 +792,11 @@ export const ElectionCouncilSection: React.FC = () => {
                       <img src={newPhotoUrl} alt="Captured photo" className="w-full h-32 object-cover" />
                       <button
                         type="button"
-                        onClick={() => setNewPhotoUrl(null)}
-                        className="absolute top-2 right-2 p-1 bg-slate-900/80 text-white rounded-full"
+                        onClick={handleDeleteNewPhoto}
+                        className="absolute top-2 right-2 p-1.5 bg-slate-900/80 hover:bg-rose-600 text-white rounded-full transition-colors"
+                        title="Remove photo from storage"
                       >
-                        <X className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}

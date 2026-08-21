@@ -15,10 +15,12 @@ import {
   Cpu,
   Database,
   RefreshCw,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import { DepartmentCode, StudentOnboardingPayload } from '../../types';
 import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
+import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
 
 interface StudentOnboardingModalProps {
   isOpen: boolean;
@@ -38,13 +40,13 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Form State
-  const [name, setName] = useState(initialGoogleData?.name || 'Aarav Sharma');
-  const [registerNumber, setRegisterNumber] = useState('24CS' + Math.floor(100 + Math.random() * 900));
-  const [collegeEmail, setCollegeEmail] = useState(initialGoogleData?.email || 'aarav.24cs@student.shov.college.edu');
-  const [phoneNumber, setPhoneNumber] = useState('+91 98765 43210');
+  const [name, setName] = useState(initialGoogleData?.name || '');
+  const [registerNumber, setRegisterNumber] = useState('');
+  const [collegeEmail, setCollegeEmail] = useState(initialGoogleData?.email || '');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [bloodGroup, setBloodGroup] = useState('O+');
-  const [guardianPhone, setGuardianPhone] = useState('+91 98111 22334');
-  const [address, setAddress] = useState('Campus Hostel Block B, Room 204');
+  const [guardianPhone, setGuardianPhone] = useState('');
+  const [address, setAddress] = useState('');
 
   // Academic State
   const [departmentCode, setDepartmentCode] = useState<DepartmentCode>('CSE');
@@ -118,7 +120,7 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
     setIsCapturingIdCard(false);
   };
 
-  const capturePhoto = (type: 'passport' | 'idCard') => {
+  const capturePhoto = async (type: 'passport' | 'idCard') => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     canvas.width = 400;
@@ -127,31 +129,89 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, 400, 400);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      stopCamera();
+
+      // Upload to Supabase Storage 'app-files'
+      const uploadRes = await uploadToSupabaseStorage(dataUrl, {
+        featureName: 'onboarding',
+        itemId: type === 'passport' ? 'passport' : 'id-card',
+        fileName: `${type}_photo`,
+        expiresInSeconds: 60 * 60 * 24 * 7
+      });
+
+      const finalUrl = uploadRes.signedUrl || dataUrl;
       if (type === 'passport') {
-        setPassportPhotoUrl(dataUrl);
+        setPassportPhotoUrl(finalUrl);
       } else {
-        setPhysicalIdCardUrl(dataUrl);
+        setPhysicalIdCardUrl(finalUrl);
       }
     }
-    stopCamera();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'passport' | 'idCard') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'passport' | 'idCard') => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        if (type === 'passport') setPassportPhotoUrl(reader.result);
-        else setPhysicalIdCardUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+
+    // Upload directly to Supabase Storage 'app-files'
+    const uploadRes = await uploadToSupabaseStorage(file, {
+      featureName: 'onboarding',
+      itemId: type === 'passport' ? 'passport' : 'id-card',
+      fileName: file.name,
+      expiresInSeconds: 60 * 60 * 24 * 7
+    });
+
+    if (uploadRes.signedUrl) {
+      if (type === 'passport') setPassportPhotoUrl(uploadRes.signedUrl);
+      else setPhysicalIdCardUrl(uploadRes.signedUrl);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          if (type === 'passport') setPassportPhotoUrl(reader.result);
+          else setPhysicalIdCardUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDeletePhoto = async (type: 'passport' | 'idCard') => {
+    const targetUrl = type === 'passport' ? passportPhotoUrl : physicalIdCardUrl;
+    if (targetUrl) {
+      await deleteFileFromStorage(targetUrl);
+    }
+    if (type === 'passport') {
+      setPassportPhotoUrl('https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400');
+    } else {
+      setPhysicalIdCardUrl('https://images.unsplash.com/photo-1589330694653-ded6df03f754?auto=format&fit=crop&q=80&w=600');
+    }
   };
 
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
+
+    let finalPassport = passportPhotoUrl;
+    let finalIdCard = physicalIdCardUrl;
+
+    // Ensure any data URLs are persisted into Supabase Storage
+    if (finalPassport.startsWith('data:')) {
+      const res = await uploadToSupabaseStorage(finalPassport, {
+        featureName: 'onboarding',
+        itemId: 'passport',
+        fileName: 'passport_photo'
+      });
+      if (res.signedUrl) finalPassport = res.signedUrl;
+    }
+    if (finalIdCard.startsWith('data:')) {
+      const res = await uploadToSupabaseStorage(finalIdCard, {
+        featureName: 'onboarding',
+        itemId: 'id-card',
+        fileName: 'id_card_photo'
+      });
+      if (res.signedUrl) finalIdCard = res.signedUrl;
+    }
+
     const payload: StudentOnboardingPayload = {
       name,
       registerNumber,
@@ -160,8 +220,8 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
       year,
       collegeEmail,
       phoneNumber,
-      passportPhotoUrl,
-      physicalIdCardUrl,
+      passportPhotoUrl: finalPassport,
+      physicalIdCardUrl: finalIdCard,
       bloodGroup,
       guardianPhone,
       address
@@ -544,6 +604,18 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
                             className="hidden"
                           />
                         </label>
+
+                        {passportPhotoUrl && !passportPhotoUrl.includes('unsplash.com') && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePhoto('passport')}
+                            className="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition"
+                            title="Delete file from storage"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remove
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -636,6 +708,18 @@ export const StudentOnboardingModal: React.FC<StudentOnboardingModalProps> = ({
                             className="hidden"
                           />
                         </label>
+
+                        {physicalIdCardUrl && !physicalIdCardUrl.includes('unsplash.com') && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePhoto('idCard')}
+                            className="py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition"
+                            title="Delete file from storage"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remove
+                          </button>
+                        )}
                       </div>
                     )}
 

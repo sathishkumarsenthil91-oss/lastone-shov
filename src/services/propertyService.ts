@@ -1,6 +1,7 @@
 import { Property, SavedProperty } from '../types';
 import { supabase } from './supabase';
 import { INITIAL_PROPERTIES } from '../data/mockData';
+import { uploadToSupabaseStorage, deleteFileFromStorage, getSignedFileUrl } from './storageService';
 
 const LOCAL_STORAGE_PROPERTIES_KEY = 'shov_properties_list';
 const LOCAL_STORAGE_SAVED_KEY = 'shov_user_saved_properties';
@@ -242,8 +243,29 @@ export async function createPropertyInSupabase(
   const newPropertyId = `prop-${Date.now()}`;
   const now = new Date().toISOString();
 
+  // Upload images to Supabase Storage app-files bucket under ${userId}/properties/${propertyId}/...
+  const uploadedImageUrls: string[] = [];
+  if (Array.isArray(payload.images)) {
+    for (let i = 0; i < payload.images.length; i++) {
+      const img = payload.images[i];
+      if (img.startsWith('data:') || img.startsWith('blob:')) {
+        const uploadRes = await uploadToSupabaseStorage(img, {
+          featureName: 'properties',
+          itemId: newPropertyId,
+          userId,
+          fileName: `photo_${i + 1}`,
+          expiresInSeconds: 60 * 60 * 24 * 7
+        });
+        uploadedImageUrls.push(uploadRes.signedUrl || uploadRes.filePath);
+      } else {
+        uploadedImageUrls.push(img);
+      }
+    }
+  }
+
   const newProperty: Property = {
     ...payload,
+    images: uploadedImageUrls.length > 0 ? uploadedImageUrls : payload.images,
     id: newPropertyId,
     userId,
     likesCount: 0,
@@ -278,7 +300,7 @@ export async function createPropertyInSupabase(
           bathrooms: payload.bathrooms,
           area_sqft: payload.areaSqft,
           amenities: payload.amenities,
-          images: payload.images,
+          images: newProperty.images,
           is_available: payload.isAvailable ?? true,
           created_at: now
         }
@@ -297,15 +319,23 @@ export async function createPropertyInSupabase(
 }
 
 /**
- * Delete a property listed by the user
+ * Delete a property listed by the user and purge its files from Storage
  */
 export async function deletePropertyFromSupabase(propertyId: string, userId: string): Promise<{ success: boolean; error?: string }> {
   if (!userId) {
     return { success: false, error: 'Authentication required.' };
   }
 
-  // 1. Delete locally
+  // 1. Find existing property to remove images from Supabase Storage
   const allProps = getLocalProperties();
+  const target = allProps.find(p => p.id === propertyId);
+  if (target && Array.isArray(target.images)) {
+    for (const imgUrl of target.images) {
+      await deleteFileFromStorage(imgUrl);
+    }
+  }
+
+  // Delete locally
   const filtered = allProps.filter(p => p.id !== propertyId);
   saveLocalProperties(filtered);
 

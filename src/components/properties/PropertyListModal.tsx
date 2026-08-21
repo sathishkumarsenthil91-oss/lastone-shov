@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Property, PropertyType } from '../../types';
 import { createPropertyInSupabase } from '../../services/propertyService';
+import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
 import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
 import { 
   X, 
@@ -18,7 +19,9 @@ import {
   Sparkles,
   Building,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Upload,
+  Trash2
 } from 'lucide-react';
 
 interface PropertyListModalProps {
@@ -129,6 +132,24 @@ export const PropertyListModal: React.FC<PropertyListModalProps> = ({
     );
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    const res = await uploadToSupabaseStorage(file, {
+      featureName: 'properties',
+      itemId: 'listing',
+      fileName: file.name,
+      userId: user.id,
+      expiresInSeconds: 60 * 60 * 24 * 7
+    });
+
+    if (res.signedUrl) {
+      setImages(prev => [res.signedUrl, ...prev]);
+      addNotification('Photo Uploaded', 'Property image saved to Supabase Storage.', 'success');
+    }
+  };
+
   const handleAddImageUrl = () => {
     if (customImageUrl.trim()) {
       setImages(prev => [...prev, customImageUrl.trim()]);
@@ -136,13 +157,34 @@ export const PropertyListModal: React.FC<PropertyListModalProps> = ({
     }
   };
 
-  const handleRemoveImage = (index: number) => {
+  const handleRemoveImage = async (index: number) => {
+    const targetUrl = images[index];
+    if (targetUrl) {
+      await deleteFileFromStorage(targetUrl);
+    }
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCameraCapture = (base64Url: string) => {
-    setImages(prev => [base64Url, ...prev]);
+  const handleCameraCapture = async (base64Url: string) => {
     setShowCamera(false);
+    if (!user?.id) {
+      setImages(prev => [base64Url, ...prev]);
+      return;
+    }
+
+    const res = await uploadToSupabaseStorage(base64Url, {
+      featureName: 'properties',
+      itemId: 'listing',
+      fileName: 'live_shot',
+      userId: user.id,
+      expiresInSeconds: 60 * 60 * 24 * 7
+    });
+
+    if (res.signedUrl) {
+      setImages(prev => [res.signedUrl, ...prev]);
+    } else {
+      setImages(prev => [base64Url, ...prev]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -418,18 +460,25 @@ export const PropertyListModal: React.FC<PropertyListModalProps> = ({
 
             {/* Property Photos & Live Camera Snapshot */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                 <label className="text-xs font-black uppercase text-slate-700 dark:text-slate-300">
-                  Property Photos ({images.length}) *
+                  Property Photos ({images.length}) * (Storage: app-files)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowCamera(true)}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5 border border-emerald-500/20"
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>Live Photo Shoot</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <label className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1.5 border border-blue-500/20 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload File</span>
+                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCamera(true)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1.5 border border-emerald-500/20 cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Live Photo Shoot</span>
+                  </button>
+                </div>
               </div>
 
               {/* Photos Gallery Previews */}

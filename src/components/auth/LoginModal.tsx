@@ -56,13 +56,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   // 5 Role Login Tabs
   const [selectedRoleTab, setSelectedRoleTab] = useState<UserRole>('STUDENT');
 
-  // Sign-in Input states
-  const [identifier, setIdentifier] = useState('23CS001');
-  const [password, setPassword] = useState('student@2026');
+  // Sign-in Input states (initialized empty - no auto-typing)
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [selectedDept, setSelectedDept] = useState<DepartmentCode>('CSE');
 
-  // OTP Login states
-  const [otpEmail, setOtpEmail] = useState('student.cse@avsct.edu.in');
+  // OTP Login states (initialized empty - no auto-typing)
+  const [otpEmail, setOtpEmail] = useState('');
   const [otpToken, setOtpToken] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [generatedDemoOtp, setGeneratedDemoOtp] = useState('');
@@ -194,12 +194,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setAuthSuccessMessage(null);
     setOtpSent(false);
     setOtpToken('');
-    const target = roleTabDetails.find(r => r.role === role);
-    if (target) {
-      setIdentifier(target.defaultId);
-      setPassword(target.defaultPass);
-      setOtpEmail(target.defaultEmail);
-    }
+    setIdentifier('');
+    setPassword('');
+    setOtpEmail('');
   };
 
   // Google OAuth Direct Sign In using Supabase Client
@@ -249,8 +246,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setLoading(false);
       
       if (error) {
-        // Fallback for sandboxes: Show OTP sent state with demo code
-        setAuthSuccessMessage(`Verification OTP sent to ${emailToUse}. (Demo verification code: ${code})`);
+        setAuthSuccessMessage(`Verification OTP sent to ${emailToUse}. Please check your inbox.`);
         addNotification('OTP Sent', `Verification code sent to ${emailToUse}`, 'success');
       } else {
         setAuthSuccessMessage(`Verification OTP code sent to ${emailToUse}. Please enter the 6-digit code.`);
@@ -262,7 +258,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setOtpSent(true);
       setResendCountdown(30);
       setLoading(false);
-      setAuthSuccessMessage(`OTP sent to ${emailToUse}. (Demo code: ${code})`);
+      setAuthSuccessMessage(`OTP sent to ${emailToUse}. Please check your inbox.`);
       addNotification('OTP Sent', `Verification code sent to ${emailToUse}`, 'success');
     }
   };
@@ -576,22 +572,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   </p>
                 </div>
               </div>
-
-              {/* Quick Fill Test Demo Account */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIdentifier(currentRoleTab.defaultId);
-                  setPassword(currentRoleTab.defaultPass);
-                  setOtpEmail(currentRoleTab.defaultEmail);
-                  setAuthError(null);
-                  addNotification('Credentials Loaded', `Pre-filled test credentials for ${currentRoleTab.label}`, 'info');
-                }}
-                className="px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-[10px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 cursor-pointer transition shrink-0"
-              >
-                <Zap className="w-3 h-3 text-amber-500" />
-                <span>Fill Test</span>
-              </button>
             </div>
 
             {/* Department Selection for HOD */}
@@ -631,11 +611,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     <div className="relative flex-1">
                       <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                       <input
-                        type="email"
+                        type="text"
                         required
                         value={otpEmail}
                         onChange={(e) => setOtpEmail(e.target.value)}
-                        placeholder="e.g. 23cs001@avsct.edu.in"
+                        placeholder={currentRoleTab.idPlaceholder}
                         className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-mono font-medium focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -665,15 +645,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         <Hash className="w-3.5 h-3.5 text-blue-600" />
                         <span>Enter 6-Digit OTP Verification Code</span>
                       </label>
-                      {generatedDemoOtp && (
-                        <button
-                          type="button"
-                          onClick={() => setOtpToken(generatedDemoOtp)}
-                          className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                        >
-                          Auto-fill: {generatedDemoOtp}
-                        </button>
-                      )}
                     </div>
 
                     <div className="relative">

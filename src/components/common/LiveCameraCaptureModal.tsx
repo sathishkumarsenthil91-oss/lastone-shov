@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, CheckCircle2, XCircle, FlipHorizontal, Sparkles, Image as ImageIcon, X } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle2, XCircle, FlipHorizontal, Sparkles, Image as ImageIcon, X, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { uploadToSupabaseStorage } from '../../services/storageService';
 
 interface LiveCameraCaptureProps {
   isOpen: boolean;
@@ -9,18 +10,21 @@ interface LiveCameraCaptureProps {
   title?: string;
   subtitle?: string;
   aspectRatio?: 'square' | 'idcard' | 'wide';
+  userId?: string;
 }
 
 export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureProps> = ({
   isOpen,
   onClose,
   onCapture,
-  title = 'Live ID Photo Capture',
-  subtitle = 'Position student face clearly within the biometric guidelines',
-  aspectRatio = 'square'
+  title = 'Student Photo Update',
+  subtitle = 'Choose a photo from your gallery or capture live webcam snapshot',
+  aspectRatio = 'square',
+  userId
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -28,6 +32,7 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [flashEffect, setFlashEffect] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const startCamera = useCallback(async () => {
     setIsInitializing(true);
@@ -57,8 +62,8 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureProps> = ({
       console.error('Camera initialization error:', err);
       setCameraError(
         err?.message?.includes('Permission') || err?.name === 'NotAllowedError'
-          ? 'Camera permission was denied. Please allow camera access in your browser.'
-          : 'Unable to access your device camera. Please check camera connection.'
+          ? 'Camera permission was denied. You can still select a picture from your device gallery below.'
+          : 'Unable to access live webcam. You can upload a photo from your photo library or gallery.'
       );
     } finally {
       setIsInitializing(false);
@@ -117,14 +122,49 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureProps> = ({
     setCapturedImage(dataUrl);
   };
 
-  const handleRetake = () => {
-    setCapturedImage(null);
+  // Handle Gallery Photo Selection
+  const handleGalleryFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCapturedImage(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleConfirm = () => {
+  const handleRetake = () => {
+    setCapturedImage(null);
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirm = async () => {
     if (capturedImage) {
-      onCapture(capturedImage);
-      onClose();
+      setIsUploading(true);
+      try {
+        if (userId) {
+          const res = await uploadToSupabaseStorage(capturedImage, {
+            featureName: 'avatars',
+            itemId: userId,
+            fileName: 'profile_photo.jpg',
+            userId: userId
+          });
+          onCapture(res.signedUrl || capturedImage);
+        } else {
+          onCapture(capturedImage);
+        }
+      } catch (err) {
+        console.warn('Storage upload fallback:', err);
+        onCapture(capturedImage);
+      } finally {
+        setIsUploading(false);
+        onClose();
+      }
     }
   };
 
@@ -245,7 +285,16 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureProps> = ({
         </div>
 
         {/* Controls Footer */}
-        <div className="p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+        <div className="p-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 gap-2 flex-wrap">
+          {/* Hidden Gallery Input */}
+          <input
+            type="file"
+            ref={galleryInputRef}
+            onChange={handleGalleryFileSelect}
+            accept="image/*"
+            className="hidden"
+          />
+
           {capturedImage ? (
             <>
               <button
@@ -254,36 +303,48 @@ export const LiveCameraCaptureModal: React.FC<LiveCameraCaptureProps> = ({
                 className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retake Photo</span>
+                <span>Retake / Pick Another</span>
               </button>
               
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                disabled={isUploading}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Use This Photo</span>
+                <span>{isUploading ? 'Uploading...' : 'Use This Photo'}</span>
               </button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="px-3.5 sm:px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <ImageIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Choose from Gallery</span>
+                </button>
+              </div>
 
               <button
                 type="button"
                 onClick={takeSnapshot}
                 disabled={Boolean(cameraError) || isInitializing}
-                className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                className="px-5 sm:px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
               >
                 <Camera className="w-4 h-4" />
-                <span>Capture Live Snapshot</span>
+                <span>Capture Live</span>
               </button>
             </>
           )}
