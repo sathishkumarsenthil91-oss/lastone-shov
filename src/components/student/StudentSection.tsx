@@ -11,6 +11,12 @@ import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
 import { Student, Fine, Payment } from '../../types';
 import { INITIAL_STUDENTS, INITIAL_FINES, INITIAL_PAYMENTS } from '../../data/mockData';
 import { fetchFinesApi } from '../../services/api';
+import { 
+  fetchStudentDetailsFromSupabase, 
+  saveStudentDetailsToSupabase, 
+  fetchFinesFromSupabase, 
+  fetchUserNotesCountFromSupabase 
+} from '../../services/campusSupabaseService';
 import { uploadToSupabaseStorage } from '../../services/storageService';
 import { supabase } from '../../services/supabase';
 import { 
@@ -83,50 +89,44 @@ export const StudentSection: React.FC = () => {
     };
   });
 
-  // Sync state whenever authenticated user changes
+  // Sync state whenever authenticated user changes & load saved Supabase profile
   useEffect(() => {
     if (!user) return;
-    const existing = INITIAL_STUDENTS.find(
-      s => s.registerNumber.toLowerCase() === user?.username?.toLowerCase() || 
-           s.id === user?.studentId ||
-           s.collegeEmail?.toLowerCase() === user?.email?.toLowerCase() ||
-           s.name.toLowerCase() === user?.name?.toLowerCase()
-    );
+    let isMounted = true;
 
-    if (existing) {
-      setStudent(prev => ({
-        ...existing,
-        name: user.name || existing.name,
-        photoUrl: user.avatarUrl || existing.photoUrl,
-        collegeEmail: user.email || existing.collegeEmail,
-        department: user.departmentName || existing.department || existing.departmentName,
-        departmentName: user.departmentName || existing.departmentName || existing.department,
-      }));
-    } else {
-      const deptFullName = user.departmentName || 'Computer Science & Engineering';
-      setStudent({
-        id: user.studentId || user.id || 'STU-NEW',
-        studentIdNumber: user.studentId || 'STU-' + (user.username?.toUpperCase() || '2026'),
-        name: user.name || 'Enrolled Student',
-        registerNumber: user.username?.toUpperCase() || user.studentId || '24CS099',
-        department: deptFullName,
-        departmentName: deptFullName,
-        departmentCode: 'CSE',
-        course: `B.E. ${deptFullName}`,
-        year: 3,
-        dateOfBirth: '15-06-2004',
-        bloodGroup: 'O+ Positive',
-        photoUrl: user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
-        collegeEmail: user.email || 'student@avsct.edu.in',
-        phoneNumber: user.phoneNumber || '+91 98765 00000',
-        validUntil: '31-05-2027',
-        validityYear: '2023 - 2027',
-        emergencyContact: '+91 98765 11000',
-        address: 'AVS College Campus Hostel, Salem - 636106',
-        status: 'ACTIVE',
-        fines: []
-      });
-    }
+    const syncStudentProfile = async () => {
+      const identifier = user.studentId || user.id || user.username || '23CS101';
+      const dbStudent = await fetchStudentDetailsFromSupabase(identifier);
+
+      if (dbStudent && isMounted) {
+        setStudent(dbStudent);
+        return;
+      }
+
+      const existing = INITIAL_STUDENTS.find(
+        s => s.registerNumber.toLowerCase() === user?.username?.toLowerCase() || 
+             s.id === user?.studentId ||
+             s.collegeEmail?.toLowerCase() === user?.email?.toLowerCase() ||
+             s.name.toLowerCase() === user?.name?.toLowerCase()
+      );
+
+      if (existing && isMounted) {
+        setStudent(prev => ({
+          ...existing,
+          name: user.name || existing.name,
+          photoUrl: user.avatarUrl || existing.photoUrl,
+          collegeEmail: user.email || existing.collegeEmail,
+          department: user.departmentName || existing.department || existing.departmentName,
+          departmentName: user.departmentName || existing.departmentName || existing.department,
+        }));
+      }
+    };
+
+    syncStudentProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const [fines, setFines] = useState<Fine[]>([]);
@@ -245,11 +245,20 @@ export const StudentSection: React.FC = () => {
   }, [student.id]);
 
   const loadStudentFines = async () => {
-    const data = await fetchFinesApi(student.id);
-    if (data.length > 0) {
-      setFines(data);
-    } else {
-      setFines(INITIAL_FINES.filter(f => f.studentId === student.id));
+    try {
+      const data = await fetchFinesFromSupabase(student.id || student.registerNumber);
+      if (data && data.length > 0) {
+        setFines(data);
+      } else {
+        const apiData = await fetchFinesApi(student.id);
+        if (apiData.length > 0) {
+          setFines(apiData);
+        } else {
+          setFines(INITIAL_FINES.filter(f => f.studentId === student.id || f.registerNumber === student.registerNumber));
+        }
+      }
+    } catch {
+      setFines(INITIAL_FINES.filter(f => f.studentId === student.id || f.registerNumber === student.registerNumber));
     }
   };
 
@@ -264,15 +273,19 @@ export const StudentSection: React.FC = () => {
 
   const handleReportLostSubmit = () => {
     if (!lostReason) return;
-    setStudent(prev => ({ ...prev, status: 'SUSPENDED' }));
+    setStudent(prev => {
+      const updated = { ...prev, status: 'SUSPENDED' as const };
+      saveStudentDetailsToSupabase(updated);
+      return updated;
+    });
     setShowReportLostModal(false);
     addNotification('Lost ID Reported', 'Your digital card status has been set to SUSPENDED. Admin & Security notified.', 'warning');
   };
 
-  const handleSaveCardDetails = (e: React.FormEvent) => {
+  const handleSaveCardDetails = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStudent(prev => ({
-      ...prev,
+    const updatedStudent: Student = {
+      ...student,
       name: editForm.name,
       registerNumber: editForm.registerNumber,
       department: editForm.department,
@@ -286,9 +299,18 @@ export const StudentSection: React.FC = () => {
       address: editForm.address,
       photoUrl: editForm.photoUrl,
       validUntil: editForm.validUntil
-    }));
+    };
+
+    setStudent(updatedStudent);
     setShowEditModal(false);
-    addNotification('Digital ID Updated', 'Student identification card information saved successfully.', 'success');
+
+    // Save to Supabase `profiles` table using .upsert()
+    const res = await saveStudentDetailsToSupabase(updatedStudent);
+    if (res.success) {
+      addNotification('Digital ID Saved', 'Student identification card information saved to Supabase cloud.', 'success');
+    } else {
+      addNotification('Digital ID Updated', 'Card updated locally and cached.', 'info');
+    }
   };
 
   return (

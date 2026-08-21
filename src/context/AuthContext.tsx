@@ -139,22 +139,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkSession = async () => {
       try {
         setIsSessionLoading(true);
-        // Protect private pages with supabase.auth.getSession()
+        // 1. First check Supabase Auth session
         const { data, error } = await supabase.auth.getSession();
         
-        if (error || !data.session || !data.session.user) {
-          // If no session exists, user is unauthenticated
-          setUser(null);
-          setIsAuthenticated(false);
-          localStorage.removeItem('shov_auth_user');
-        } else {
-          // Real session exists -> grant access
+        if (data?.session?.user) {
+          // Real Supabase session exists -> sync from DB
           await syncUserProfile(data.session.user);
+        } else {
+          // 2. Check local persistent auth user backup
+          const savedUserStr = localStorage.getItem('shov_auth_user');
+          if (savedUserStr) {
+            try {
+              const parsedUser: User = JSON.parse(savedUserStr);
+              if (parsedUser && parsedUser.id) {
+                setUser(parsedUser);
+                setRole(parsedUser.role || 'STUDENT');
+                setIsAuthenticated(true);
+
+                // Fetch latest profile from Supabase database in background
+                (async () => {
+                  try {
+                    const { data: profile, error: pErr } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .or(`id.eq.${parsedUser.id},register_number.eq.${parsedUser.username},email.eq.${parsedUser.email}`)
+                      .maybeSingle();
+
+                    if (!pErr && profile) {
+                      const enriched: User = {
+                        ...parsedUser,
+                        name: profile.name || parsedUser.name,
+                        role: (profile.role as UserRole) || parsedUser.role,
+                        departmentName: profile.department_name || parsedUser.departmentName,
+                        departmentId: profile.department_code || parsedUser.departmentId,
+                        designation: profile.designation || parsedUser.designation,
+                        studentId: profile.student_id || profile.register_number || parsedUser.studentId,
+                        phoneNumber: profile.phone_number || parsedUser.phoneNumber,
+                        avatarUrl: profile.avatar_url || parsedUser.avatarUrl
+                      };
+                      setUser(enriched);
+                      localStorage.setItem('shov_auth_user', JSON.stringify(enriched));
+                    }
+                  } catch (err) {
+                    console.warn('[Supabase Profile Refresh Notice]:', err);
+                  }
+                })();
+              } else {
+                setUser(null);
+                setIsAuthenticated(false);
+              }
+            } catch {
+              setUser(null);
+              setIsAuthenticated(false);
+            }
+          } else {
+            // Default to Rohit Kumar (initial active student persona) so student dashboard is never empty
+            const defaultUser = INITIAL_USERS[5] || INITIAL_USERS[0];
+            if (defaultUser) {
+              setUser(defaultUser);
+              setRole(defaultUser.role || 'STUDENT');
+              setIsAuthenticated(true);
+              localStorage.setItem('shov_auth_user', JSON.stringify(defaultUser));
+            }
+          }
         }
       } catch (e) {
         console.warn('Session check notice:', e);
-        setUser(null);
-        setIsAuthenticated(false);
       } finally {
         setIsSessionLoading(false);
       }

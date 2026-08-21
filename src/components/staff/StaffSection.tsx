@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
+import { StaffAttendanceDashboard } from './StaffAttendanceDashboard';
 import { StaffScanner } from './StaffScanner';
 import { StaffHistory } from './StaffHistory';
 import { StaffHodCommunication } from './StaffHodCommunication';
 import { StaffDigitalIDCard } from './StaffDigitalIDCard';
 import { ClassCoordinatorSection } from '../coordinator/ClassCoordinatorSection';
 import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
-import { ShieldCheck, History, Scan, Building2, UserCheck, QrCode, FileText } from 'lucide-react';
+import { ShieldCheck, History, Scan, Building2, UserCheck, QrCode, FileText, CalendarCheck } from 'lucide-react';
 
 export const StaffSection: React.FC = () => {
-  const [activeStaffTab, setActiveStaffTab] = useState<'badge' | 'scanner' | 'history' | 'coordinator-passes' | 'communication'>('badge');
+  const [activeStaffTab, setActiveStaffTab] = useState<'attendance' | 'badge' | 'scanner' | 'history' | 'coordinator-passes' | 'communication'>('attendance');
 
   return (
     <div className="space-y-6">
@@ -30,7 +31,7 @@ export const StaffSection: React.FC = () => {
               Staff & Gate Security Portal
             </h1>
             <p className="text-xs sm:text-sm text-slate-300">
-              Biometric Facial Matcher, QR Gate Turnstiles, Gate Pass Approvals & Direct Channel to Department HODs.
+              Student Attendance Management, Biometric Facial Matcher, QR Gate Turnstiles, Gate Pass Approvals & Direct Channel to Department HODs.
             </p>
           </div>
 
@@ -49,6 +50,18 @@ export const StaffSection: React.FC = () => {
 
       {/* Sub Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
+        <button
+          onClick={() => setActiveStaffTab('attendance')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeStaffTab === 'attendance'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
+          }`}
+        >
+          <CalendarCheck className="w-3.5 h-3.5" />
+          <span>Student Attendance & Roster</span>
+        </button>
+
         <button
           onClick={() => setActiveStaffTab('badge')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
@@ -111,6 +124,10 @@ export const StaffSection: React.FC = () => {
       </div>
 
       {/* Tab Content */}
+      {activeStaffTab === 'attendance' && (
+        <StaffAttendanceDashboard />
+      )}
+
       {activeStaffTab === 'badge' && (
         <div className="py-2">
           <StaffDigitalIDCard />
@@ -136,4 +153,5 @@ export const StaffSection: React.FC = () => {
     </div>
   );
 };
+
 

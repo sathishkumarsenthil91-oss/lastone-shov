@@ -111,7 +111,7 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
     {
       role: 'STAFF',
       title: 'Staff & Security',
-      subtitle: 'Gate Scanner, Biometrics Turnstiles, HOD Messaging',
+      subtitle: 'Student Attendance, Gate Scanner, Biometrics Turnstiles & Proctoring',
       icon: <ShieldCheck className="w-5 h-5" />,
       colorName: 'Blue',
       hex: '#0095f6',

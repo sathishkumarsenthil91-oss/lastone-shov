@@ -193,9 +193,20 @@ export const Header: React.FC<HeaderProps> = ({
         return (
           <>
             <button
+              onClick={() => setActiveTab?.('staff-attendance')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                activeTab === 'staff-attendance' || activeTab === 'staff'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Student Attendance</span>
+            </button>
+            <button
               onClick={() => setActiveTab?.('staff-scanner')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                activeTab === 'staff-scanner' || activeTab === 'staff'
+                activeTab === 'staff-scanner'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}

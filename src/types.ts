@@ -433,4 +433,59 @@ export interface SavedProperty {
   property?: Property;
 }
 
+// ============================================================================
+// STAFF ATTENDANCE & ALLOCATION TYPES
+// ============================================================================
+
+export type AttendanceStatus = 'Present' | 'Absent';
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  departmentCode: DepartmentCode;
+  designation: string;
+  phoneNumber?: string;
+  avatarUrl?: string;
+}
+
+export interface StaffStudentAllocation {
+  id: string;
+  staffId: string;
+  studentId: string;
+  departmentCode?: DepartmentCode;
+  academicYear?: string;
+  allocatedAt: string;
+  // Enriched fields
+  student?: Student;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  studentId: string;
+  staffId: string;
+  attendanceDate: string; // Format: YYYY-MM-DD
+  status: AttendanceStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Enriched fields for easy rendering
+  studentName?: string;
+  registerNumber?: string;
+  departmentName?: string;
+  departmentCode?: DepartmentCode;
+  course?: string;
+  photoUrl?: string;
+}
+
+export interface AttendanceDailySummary {
+  date: string;
+  totalAllocated: number;
+  presentCount: number;
+  absentCount: number;
+  unmarkedCount: number;
+  attendancePercentage: number;
+}
+
+
 

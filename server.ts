@@ -1773,6 +1773,99 @@ Real-time ${domain} applications in ${department} struggle with ingestion bottle
     return res.json(listed);
   });
 
+  // ==========================================================================
+  // STAFF STUDENT ATTENDANCE & ALLOCATION ENDPOINTS
+  // ==========================================================================
+  const serverAllocations: Record<string, string[]> = {
+    'u-staff-1': ['st-001', 'st-002', 'st-003', 'st-004', 'st-008', 'st-011'],
+    'u-staff-2': ['st-005', 'st-006', 'st-007', 'st-014', 'st-015'],
+    'u-staff-3': ['st-009', 'st-012', 'st-016', 'st-017'],
+    'u-staff-4': ['st-010', 'st-013', 'st-018', 'st-019']
+  };
+
+  const serverAttendanceRecords: Array<{
+    id: string;
+    studentId: string;
+    staffId: string;
+    attendanceDate: string;
+    status: 'Present' | 'Absent';
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+  }> = [];
+
+  // Get allocated students for staff
+  app.get('/api/staff/allocated-students', (req, res) => {
+    const staffId = (req.query.staffId as string) || 'u-staff-1';
+    const studentIds = serverAllocations[staffId] || [];
+    const allocated = studentsData.filter(s => studentIds.includes(s.id));
+    return res.json({ success: true, staffId, students: allocated });
+  });
+
+  // Allocate student to staff
+  app.post('/api/staff/allocate-student', (req, res) => {
+    const { staffId, studentId } = req.body;
+    if (!staffId || !studentId) {
+      return res.status(400).json({ error: 'staffId and studentId are required' });
+    }
+    if (!serverAllocations[staffId]) serverAllocations[staffId] = [];
+    if (!serverAllocations[staffId].includes(studentId)) {
+      serverAllocations[staffId].push(studentId);
+    }
+    return res.json({ success: true, allocatedCount: serverAllocations[staffId].length });
+  });
+
+  // Unallocate student from staff
+  app.post('/api/staff/unallocate-student', (req, res) => {
+    const { staffId, studentId } = req.body;
+    if (!staffId || !studentId) {
+      return res.status(400).json({ error: 'staffId and studentId are required' });
+    }
+    if (serverAllocations[staffId]) {
+      serverAllocations[staffId] = serverAllocations[staffId].filter(id => id !== studentId);
+    }
+    return res.json({ success: true });
+  });
+
+  // Get attendance records for staff and date
+  app.get('/api/staff/attendance', (req, res) => {
+    const staffId = (req.query.staffId as string) || 'u-staff-1';
+    const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const records = serverAttendanceRecords.filter(r => r.staffId === staffId && r.attendanceDate === date);
+    return res.json({ success: true, date, records });
+  });
+
+  // Mark single attendance record
+  app.post('/api/staff/attendance/mark', (req, res) => {
+    const { studentId, staffId, attendanceDate, status, notes } = req.body;
+    if (!studentId || !staffId || !attendanceDate || !status) {
+      return res.status(400).json({ error: 'Missing required attendance fields' });
+    }
+    const now = new Date().toISOString();
+    const existingIndex = serverAttendanceRecords.findIndex(
+      r => r.studentId === studentId && r.attendanceDate === attendanceDate
+    );
+
+    const record = {
+      id: `att-${studentId}-${attendanceDate}`,
+      studentId,
+      staffId,
+      attendanceDate,
+      status: status as 'Present' | 'Absent',
+      notes: notes || '',
+      createdAt: existingIndex >= 0 ? serverAttendanceRecords[existingIndex].createdAt : now,
+      updatedAt: now
+    };
+
+    if (existingIndex >= 0) {
+      serverAttendanceRecords[existingIndex] = record;
+    } else {
+      serverAttendanceRecords.push(record);
+    }
+
+    return res.json({ success: true, record });
+  });
+
   // Vite middleware for development vs static serve for production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

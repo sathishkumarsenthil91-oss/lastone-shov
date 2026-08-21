@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { StudentInquiry, AuthorityTarget, DepartmentCode, InquiryCategory, ElectionCouncilRole } from '../../types';
 import { fetchInquiriesApi, submitInquiryApi, sendInquiryMessageApi, updateInquiryStatusApi } from '../../services/api';
+import { fetchInquiriesFromSupabase, createInquiryInSupabase } from '../../services/campusSupabaseService';
 import { LiveCameraCaptureModal } from '../common/LiveCameraCaptureModal';
 import { uploadToSupabaseStorage, deleteFileFromStorage } from '../../services/storageService';
+import { supabase } from '../../services/supabase';
 import { 
   Send, 
   Camera, 
@@ -99,10 +101,20 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
       } else if (user?.role === 'VICE_PRINCIPAL') {
         filters.targetAuthority = 'VICE_PRINCIPAL';
       }
-      const data = await fetchInquiriesApi(filters);
-      setInquiries(data);
-      if (data.length > 0 && !selectedInquiry) {
-        setSelectedInquiry(data[0]);
+
+      // Fetch from Supabase directly
+      const dbData = await fetchInquiriesFromSupabase(filters);
+      if (dbData && dbData.length > 0) {
+        setInquiries(dbData);
+        if (!selectedInquiry) {
+          setSelectedInquiry(dbData[0]);
+        }
+      } else {
+        const data = await fetchInquiriesApi(filters);
+        setInquiries(data);
+        if (data.length > 0 && !selectedInquiry) {
+          setSelectedInquiry(data[0]);
+        }
       }
     } catch (e) {
       console.warn('Failed to load inquiries', e);
@@ -204,17 +216,31 @@ export const InquiriesHub: React.FC<InquiriesHubProps> = ({
         priority
       };
 
-      const result = await submitInquiryApi(payload);
-      if (result.success && result.inquiry) {
-        setInquiries(prev => [result.inquiry!, ...prev]);
-        setSelectedInquiry(result.inquiry);
+      // Save to Supabase database
+      const dbRes = await createInquiryInSupabase(payload);
+      if (dbRes.success && dbRes.inquiry) {
+        setInquiries(prev => [dbRes.inquiry!, ...prev]);
+        setSelectedInquiry(dbRes.inquiry);
         setShowCreateModal(false);
         setSubject('');
         setMessage('');
         setCapturedPhotoUrl(null);
-        addNotification('Inquiry Dispatched', `Your inquiry has been submitted to ${targetAuthority} with private storage attachments.`, 'success');
+        addNotification('Inquiry Dispatched', `Your inquiry has been submitted to ${targetAuthority} and saved to Supabase cloud.`, 'success');
+        // also notify backend server
+        submitInquiryApi(payload).catch(() => {});
       } else {
-        addNotification('Submission Failed', result.error || 'Unable to submit inquiry.', 'error');
+        const result = await submitInquiryApi(payload);
+        if (result.success && result.inquiry) {
+          setInquiries(prev => [result.inquiry!, ...prev]);
+          setSelectedInquiry(result.inquiry);
+          setShowCreateModal(false);
+          setSubject('');
+          setMessage('');
+          setCapturedPhotoUrl(null);
+          addNotification('Inquiry Dispatched', `Your inquiry has been submitted to ${targetAuthority} with private storage attachments.`, 'success');
+        } else {
+          addNotification('Submission Failed', result.error || 'Unable to submit inquiry.', 'error');
+        }
       }
     } catch (err) {
       console.error(err);

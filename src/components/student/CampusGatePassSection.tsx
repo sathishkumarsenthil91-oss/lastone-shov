@@ -4,6 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import { Student, DepartmentCode } from '../../types';
 import { RoleLiveVerifiedBadge, InstagramTickIcon } from '../common/RoleLiveVerifiedBadge';
 import { 
+  fetchGatePassesFromSupabase, 
+  createGatePassInSupabase, 
+  GatePassRecord 
+} from '../../services/campusSupabaseService';
+import { supabase } from '../../services/supabase';
+import { 
   ShieldCheck, 
   Clock, 
   Send, 
@@ -90,26 +96,47 @@ interface CampusGatePassSectionProps {
 
 export const CampusGatePassSection: React.FC<CampusGatePassSectionProps> = ({ student }) => {
   const { addNotification } = useAuth();
+  const [isLoadingPasses, setIsLoadingPasses] = useState(false);
 
   // Load from local storage or initial state
-  const [gatePasses, setGatePasses] = useState<GatePassRequest[]>(() => {
-    try {
-      const saved = localStorage.getItem('avs_gate_passes');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
-    return INITIAL_GATE_PASSES;
-  });
+  const [gatePasses, setGatePasses] = useState<GatePassRequest[]>(INITIAL_GATE_PASSES);
 
-  // Save to local storage on changes
+  // Load from Supabase on component mount and sync
   useEffect(() => {
-    try {
-      localStorage.setItem('avs_gate_passes', JSON.stringify(gatePasses));
-    } catch {
-      // ignore
-    }
-  }, [gatePasses]);
+    let isMounted = true;
+    const loadPasses = async () => {
+      setIsLoadingPasses(true);
+      try {
+        const data = await fetchGatePassesFromSupabase(student.id || student.registerNumber);
+        if (data && data.length > 0 && isMounted) {
+          setGatePasses(data as GatePassRequest[]);
+        }
+      } catch (err) {
+        console.error('Error fetching gate passes:', err);
+      } finally {
+        if (isMounted) setIsLoadingPasses(false);
+      }
+    };
+
+    loadPasses();
+
+    // Supabase Real-Time Channel for gate passes
+    const channel = supabase
+      .channel('realtime_gate_passes_sub')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'gate_passes' },
+        () => {
+          loadPasses();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [student.id, student.registerNumber]);
 
   // Pass Request Form State
   const [curfewReturnTime, setCurfewReturnTime] = useState('08:30 PM');
@@ -131,13 +158,13 @@ export const CampusGatePassSection: React.FC<CampusGatePassSectionProps> = ({ st
   // Filter student passes
   const myPasses = gatePasses.filter(
     p => p.studentId === student.id || 
-         p.registerNumber.toLowerCase() === student.registerNumber.toLowerCase() ||
-         p.studentEmail.toLowerCase() === student.collegeEmail?.toLowerCase()
+         p.registerNumber?.toLowerCase() === student.registerNumber?.toLowerCase() ||
+         p.studentEmail?.toLowerCase() === student.collegeEmail?.toLowerCase()
   );
 
   const activePass = myPasses.find(p => p.status === 'APPROVED' || p.status === 'PENDING_CC_APPROVAL');
 
-  const handleSubmitPassRequest = (e: React.FormEvent) => {
+  const handleSubmitPassRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!note.trim()) {
       addNotification('Missing Information', 'Please provide a detailed note / parent consent details.', 'warning');
@@ -147,9 +174,8 @@ export const CampusGatePassSection: React.FC<CampusGatePassSectionProps> = ({ st
     setIsSubmitting(true);
     const assignedCC = DEFAULT_COORDINATORS.find(c => c.email === coordinatorEmail) || selectedCoordinator;
 
-    setTimeout(() => {
-      const newPass: GatePassRequest = {
-        id: `GP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    try {
+      const passPayload = {
         studentId: student.id,
         studentName: student.name,
         registerNumber: student.registerNumber,
@@ -165,20 +191,26 @@ export const CampusGatePassSection: React.FC<CampusGatePassSectionProps> = ({ st
         note: note,
         assignedCoordinatorName: assignedCC.name,
         assignedCoordinatorEmail: assignedCC.email,
-        status: 'PENDING_CC_APPROVAL',
-        createdAt: 'Just now'
+        status: 'PENDING_CC_APPROVAL' as const
       };
 
-      setGatePasses(prev => [newPass, ...prev]);
+      const result = await createGatePassInSupabase(passPayload);
+
+      if (result.gatePass) {
+        setGatePasses(prev => [result.gatePass as GatePassRequest, ...prev]);
+        setNote('');
+        setReasonDetails('');
+        addNotification(
+          'Gate Pass Request Dispatched',
+          `Note & request sent to Class Coordinator (${assignedCC.name}) and saved to Supabase.`,
+          'success'
+        );
+      }
+    } catch (err) {
+      console.error('Error submitting gate pass:', err);
+    } finally {
       setIsSubmitting(false);
-      setNote('');
-      setReasonDetails('');
-      addNotification(
-        'Gate Pass Request Dispatched',
-        `Note & request sent to Class Coordinator (${assignedCC.name}) for approval.`,
-        'success'
-      );
-    }, 600);
+    }
   };
 
   const getReasonLabel = (r: GatePassRequest['reason']) => {
