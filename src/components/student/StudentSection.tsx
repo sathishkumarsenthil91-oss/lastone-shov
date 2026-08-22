@@ -52,11 +52,13 @@ import {
   BookOpen
 } from 'lucide-react';
 
+import { StudentAttendanceSection } from './StudentAttendanceSection';
+
 export const StudentSection: React.FC = () => {
   const { user, addNotification } = useAuth();
 
   // Active sub-tab inside Student Section
-  const [studentTab, setStudentTab] = useState<'id-card' | 'notes' | 'academic' | 'gate-pass' | 'fines' | 'inquiries'>('id-card');
+  const [studentTab, setStudentTab] = useState<'id-card' | 'notes' | 'academic' | 'cc-attendance' | 'gate-pass' | 'fines' | 'inquiries'>('id-card');
 
   // Selected student (defaults to matched logged-in student or Rohit Kumar)
   const [student, setStudent] = useState<Student>(() => {
@@ -191,6 +193,8 @@ export const StudentSection: React.FC = () => {
         setStudentTab('notes');
       } else if (hash === 'id-card' || hash === 'student-id' || hash === 'id') {
         setStudentTab('id-card');
+      } else if (hash === 'cc-attendance' || hash === 'attendance' || hash === 'cc' || hash === 'coordinator') {
+        setStudentTab('cc-attendance');
       } else if (hash === 'academic' || hash === 'student-academic') {
         setStudentTab('academic');
       } else if (hash === 'gate-pass' || hash === 'student-gate-pass' || hash === 'gatepass') {
@@ -383,14 +387,14 @@ export const StudentSection: React.FC = () => {
             {/* Clickable Attendance Shortcut */}
             <button
               onClick={() => {
-                setStudentTab('academic');
-                window.location.hash = '#academic';
+                setStudentTab('cc-attendance');
+                window.location.hash = '#attendance';
               }}
               className="p-3 rounded-2xl bg-white/10 hover:bg-emerald-500/20 backdrop-blur-md border border-white/10 hover:border-emerald-400/50 text-center min-w-[90px] transition-all cursor-pointer group"
-              title="View Academic Record"
+              title="View Class Coordinator & Live Attendance Tracker"
             >
-              <span className="text-[10px] text-slate-300 uppercase font-bold block group-hover:text-emerald-300">Attendance</span>
-              <span className="text-lg font-black text-emerald-400">94.2%</span>
+              <span className="text-[10px] text-slate-300 uppercase font-bold block group-hover:text-emerald-300">Live Attendance</span>
+              <span className="text-lg font-black text-emerald-400">91.7%</span>
             </button>
 
             {/* Clickable Pending Fines Shortcut */}
@@ -441,6 +445,21 @@ export const StudentSection: React.FC = () => {
         >
           <BookOpen className="w-3.5 h-3.5" />
           <span>Study Notes Repository ({totalNotes})</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setStudentTab('cc-attendance');
+            window.location.hash = '#attendance';
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            studentTab === 'cc-attendance'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>CC & Live Attendance</span>
         </button>
 
         <button
@@ -505,6 +524,10 @@ export const StudentSection: React.FC = () => {
       </div>
 
       {/* 3. TAB CONTENT */}
+      {studentTab === 'cc-attendance' && (
+        <StudentAttendanceSection studentIdOrReg={student.id} />
+      )}
+
       {studentTab === 'notes' && (
         <StudentNotesRepository 
           onNotesCountUpdated={(count) => setTotalNotes(count)}

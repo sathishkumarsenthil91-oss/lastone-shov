@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { 
   INITIAL_STUDENTS, 
@@ -35,7 +34,7 @@ import {
 
 // Initialize Google GenAI on server-side
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY || 'AIzaSy_dummy_key_for_init',
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -437,7 +436,7 @@ const activeOtps: Record<string, string> = {};
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
@@ -1774,13 +1773,17 @@ Real-time ${domain} applications in ${department} struggle with ingestion bottle
   });
 
   // ==========================================================================
-  // STAFF STUDENT ATTENDANCE & ALLOCATION ENDPOINTS
+  // STAFF, CLASS COORDINATOR & STUDENT ATTENDANCE ENDPOINTS
   // ==========================================================================
   const serverAllocations: Record<string, string[]> = {
-    'u-staff-1': ['st-001', 'st-002', 'st-003', 'st-004', 'st-008', 'st-011'],
-    'u-staff-2': ['st-005', 'st-006', 'st-007', 'st-014', 'st-015'],
-    'u-staff-3': ['st-009', 'st-012', 'st-016', 'st-017'],
-    'u-staff-4': ['st-010', 'st-013', 'st-018', 'st-019']
+    'u-staff-1': ['st-001', 'st-002', 'st-008'], // Marcus Vance / Swaminathan (CSE Year 3 Sec A)
+    'u-staff-2': ['st-001', 'st-002'],          // Anita Sharma (CSE Year 3 Sec B)
+    'u-staff-it': ['st-003', 'st-005'],         // David Miller (IT Year 3 Sec A)
+    'u-staff-ece': ['st-ece-01', 'st-ece-02'],  // Venkatraman (ECE Year 3 Sec A)
+    'u-staff-aids': ['st-004'],                 // Sneha Kulkarni (AIDS Year 2 Sec A)
+    'u-staff-eee': ['st-eee-01'],               // Suresh (EEE Year 3 Sec A)
+    'u-staff-mech': ['st-mech-01'],             // Balasubramanian (MECH Year 3 Sec A)
+    'u-staff-agri': ['st-agri-01']              // Meenakshi (AGRI Year 3 Sec A)
   };
 
   const serverAttendanceRecords: Array<{
@@ -1788,18 +1791,157 @@ Real-time ${domain} applications in ${department} struggle with ingestion bottle
     studentId: string;
     staffId: string;
     attendanceDate: string;
-    status: 'Present' | 'Absent';
+    status: 'Present' | 'Absent' | 'Leave';
     notes?: string;
     createdAt: string;
     updatedAt: string;
   }> = [];
 
-  // Get allocated students for staff
+  // Seed sample records for server-side
+  const pastDays = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12];
+  studentsData.forEach(st => {
+    pastDays.forEach((daysAgo, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() - daysAgo);
+      const dateStr = d.toISOString().split('T')[0];
+      let status: 'Present' | 'Absent' | 'Leave' = 'Present';
+      if (st.id === 'st-001') {
+        if (idx === 3) status = 'Absent';
+        else if (idx === 7) status = 'Leave';
+      } else if (st.id === 'st-003') {
+        if (idx === 2) status = 'Leave';
+      } else if (st.id === 'st-005') {
+        if (idx === 1 || idx === 6) status = 'Absent';
+        else if (idx === 4) status = 'Leave';
+      }
+      serverAttendanceRecords.push({
+        id: `att-${st.id}-${dateStr}`,
+        studentId: st.id,
+        staffId: st.classCoordinatorId || 'u-staff-1',
+        attendanceDate: dateStr,
+        status,
+        notes: status === 'Leave' ? 'Approved Leave' : status === 'Absent' ? 'Unexcused' : 'Regular Attendance',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    });
+  });
+
+  // Get allocated students for staff (filtered by staff department)
   app.get('/api/staff/allocated-students', (req, res) => {
     const staffId = (req.query.staffId as string) || 'u-staff-1';
-    const studentIds = serverAllocations[staffId] || [];
-    const allocated = studentsData.filter(s => studentIds.includes(s.id));
-    return res.json({ success: true, staffId, students: allocated });
+    const deptCode = (req.query.departmentCode as string || '').toUpperCase();
+    
+    let allocated = studentsData;
+    if (deptCode) {
+      allocated = allocated.filter(s => (s.departmentCode || s.departmentId?.replace('dept-', '') || '').toUpperCase() === deptCode);
+    } else {
+      const studentIds = serverAllocations[staffId] || [];
+      if (studentIds.length > 0) {
+        allocated = allocated.filter(s => studentIds.includes(s.id));
+      }
+    }
+
+    return res.json({ success: true, staffId, departmentCode: deptCode, students: allocated });
+  });
+
+  // Get class coordinator cohort students
+  app.get('/api/coordinator/students', (req, res) => {
+    const staffId = req.query.staffId as string;
+    const departmentCode = (req.query.departmentCode as string || 'CSE').toUpperCase();
+    const year = parseInt(req.query.year as string || '3', 10);
+    const section = (req.query.section as string || 'A').toUpperCase();
+
+    const students = studentsData.filter(s => {
+      const sDept = (s.departmentCode || s.departmentId?.replace('dept-', '') || '').toUpperCase();
+      const sYear = s.year;
+      const sSec = (s.section || 'A').toUpperCase();
+      return sDept === departmentCode && sYear === year && sSec === section;
+    });
+
+    return res.json({ success: true, departmentCode, year, section, count: students.length, students });
+  });
+
+  // Mark single attendance record (Present / Absent / Leave) with duplicate prevention on (studentId, attendanceDate)
+  app.post('/api/staff/attendance/mark', (req, res) => {
+    const { studentId, staffId, attendanceDate, status, notes } = req.body;
+    if (!studentId || !staffId || !attendanceDate || !status) {
+      return res.status(400).json({ error: 'Missing required attendance fields' });
+    }
+
+    const normStatus = (status.toLowerCase() === 'present' ? 'Present' :
+      status.toLowerCase() === 'leave' ? 'Leave' : 'Absent') as 'Present' | 'Absent' | 'Leave';
+
+    const now = new Date().toISOString();
+    const existingIndex = serverAttendanceRecords.findIndex(
+      r => r.studentId === studentId && r.attendanceDate === attendanceDate
+    );
+
+    const record = {
+      id: `att-${studentId}-${attendanceDate}`,
+      studentId,
+      staffId,
+      attendanceDate,
+      status: normStatus,
+      notes: notes || '',
+      createdAt: existingIndex >= 0 ? serverAttendanceRecords[existingIndex].createdAt : now,
+      updatedAt: now
+    };
+
+    if (existingIndex >= 0) {
+      serverAttendanceRecords[existingIndex] = record;
+    } else {
+      serverAttendanceRecords.push(record);
+    }
+
+    return res.json({ success: true, record });
+  });
+
+  // Student specific attendance summary and history
+  app.get('/api/attendance/student/:studentId', (req, res) => {
+    const { studentId } = req.params;
+    const student = studentsData.find(s => s.id === studentId || s.registerNumber === studentId);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const records = serverAttendanceRecords.filter(r => r.studentId === student.id)
+      .sort((a, b) => b.attendanceDate.localeCompare(a.attendanceDate));
+
+    let presentDays = 0;
+    let absentDays = 0;
+    let leaveDays = 0;
+
+    records.forEach(r => {
+      if (r.status === 'Present') presentDays++;
+      else if (r.status === 'Absent') absentDays++;
+      else if (r.status === 'Leave') leaveDays++;
+    });
+
+    const totalWorkingDays = presentDays + absentDays + leaveDays;
+    const attendancePercentage = totalWorkingDays > 0
+      ? Math.round((presentDays / totalWorkingDays) * 1000) / 10
+      : 100.0;
+
+    return res.json({
+      success: true,
+      studentId: student.id,
+      studentName: student.name,
+      registerNumber: student.registerNumber,
+      departmentName: student.departmentName,
+      departmentCode: student.departmentCode || 'CSE',
+      year: student.year,
+      section: student.section || 'A',
+      coordinatorName: student.classCoordinatorName || 'Prof. R. Swaminathan',
+      coordinatorEmail: student.classCoordinatorEmail || 'swaminathan.cc.cse@avsct.edu.in',
+      coordinatorPhone: student.classCoordinatorPhone || '+91 98765 99011',
+      totalWorkingDays,
+      presentDays,
+      absentDays,
+      leaveDays,
+      attendancePercentage,
+      records
+    });
   });
 
   // Allocate student to staff
@@ -1835,39 +1977,9 @@ Real-time ${domain} applications in ${department} struggle with ingestion bottle
     return res.json({ success: true, date, records });
   });
 
-  // Mark single attendance record
-  app.post('/api/staff/attendance/mark', (req, res) => {
-    const { studentId, staffId, attendanceDate, status, notes } = req.body;
-    if (!studentId || !staffId || !attendanceDate || !status) {
-      return res.status(400).json({ error: 'Missing required attendance fields' });
-    }
-    const now = new Date().toISOString();
-    const existingIndex = serverAttendanceRecords.findIndex(
-      r => r.studentId === studentId && r.attendanceDate === attendanceDate
-    );
-
-    const record = {
-      id: `att-${studentId}-${attendanceDate}`,
-      studentId,
-      staffId,
-      attendanceDate,
-      status: status as 'Present' | 'Absent',
-      notes: notes || '',
-      createdAt: existingIndex >= 0 ? serverAttendanceRecords[existingIndex].createdAt : now,
-      updatedAt: now
-    };
-
-    if (existingIndex >= 0) {
-      serverAttendanceRecords[existingIndex] = record;
-    } else {
-      serverAttendanceRecords.push(record);
-    }
-
-    return res.json({ success: true, record });
-  });
-
   // Vite middleware for development vs static serve for production
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

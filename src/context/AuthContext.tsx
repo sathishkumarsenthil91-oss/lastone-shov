@@ -43,6 +43,7 @@ interface AuthContextType {
   role: UserRole;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isSessionLoading: boolean;
   darkMode: boolean;
   notifications: NotificationItem[];
   toggleDarkMode: () => void;
@@ -75,9 +76,46 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<UserRole>('STUDENT');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(() => {
+    // Fast initial synchronous hydration from localStorage
+    try {
+      const saved = localStorage.getItem('shov_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.id) return parsed;
+      }
+    } catch {
+      // fallback
+    }
+    return null;
+  });
+
+  const [role, setRole] = useState<UserRole>(() => {
+    try {
+      const saved = localStorage.getItem('shov_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.role) return parsed.role;
+      }
+    } catch {
+      // fallback
+    }
+    return 'STUDENT';
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('shov_auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return !!(parsed && parsed.id);
+      }
+    } catch {
+      // fallback
+    }
+    return false;
+  });
+
   const [isSessionLoading, setIsSessionLoading] = useState<boolean>(true);
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -102,29 +140,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const syncUserProfile = async (authUser: any) => {
       const basicUser = mapSupabaseUserToAppUser(authUser);
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authUser.id)
           .maybeSingle();
 
-        if (profile) {
+        if (profile && !error) {
           const enrichedUser: User = {
             ...basicUser,
             name: profile.name || basicUser.name,
             role: (profile.role as UserRole) || basicUser.role,
             departmentName: profile.department_name || basicUser.departmentName,
-            departmentId: profile.department_code || basicUser.departmentId,
+            departmentId: profile.department_code ? `dept-${profile.department_code.toLowerCase()}` : basicUser.departmentId,
             designation: profile.designation || basicUser.designation,
             studentId: profile.student_id || profile.register_number || basicUser.studentId,
             phoneNumber: profile.phone_number || basicUser.phoneNumber,
-            avatarUrl: profile.avatar_url || basicUser.avatarUrl
+            avatarUrl: profile.avatar_url || basicUser.avatarUrl,
+            verificationStatus: profile.verification_status || 'PENDING'
           };
           setUser(enrichedUser);
           setRole(enrichedUser.role);
           setIsAuthenticated(true);
           localStorage.setItem('shov_auth_user', JSON.stringify(enrichedUser));
           return;
+        } else {
+          // Upsert new profile record into Supabase profiles table
+          try {
+            await supabase.from('profiles').upsert([
+              {
+                id: basicUser.id,
+                name: basicUser.name,
+                email: basicUser.email,
+                role: basicUser.role,
+                department_code: basicUser.departmentId?.replace('dept-', '').toUpperCase() || 'CSE',
+                department_name: basicUser.departmentName,
+                designation: basicUser.designation,
+                student_id: basicUser.studentId,
+                register_number: basicUser.studentId,
+                phone_number: basicUser.phoneNumber,
+                avatar_url: basicUser.avatarUrl,
+                verification_status: 'PENDING',
+                updated_at: new Date().toISOString()
+              }
+            ]);
+          } catch (upsertErr) {
+            console.warn('[Profile Upsert Notice]:', upsertErr);
+          }
         }
       } catch (e) {
         console.warn('Profile fetch notice:', e);
@@ -140,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         setIsSessionLoading(true);
         // 1. First check Supabase Auth session
-        const { data, error } = await supabase.auth.getSession();
+        const { data } = await supabase.auth.getSession();
         
         if (data?.session?.user) {
           // Real Supabase session exists -> sync from DB
@@ -171,11 +233,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         name: profile.name || parsedUser.name,
                         role: (profile.role as UserRole) || parsedUser.role,
                         departmentName: profile.department_name || parsedUser.departmentName,
-                        departmentId: profile.department_code || parsedUser.departmentId,
+                        departmentId: profile.department_code ? `dept-${profile.department_code.toLowerCase()}` : parsedUser.departmentId,
                         designation: profile.designation || parsedUser.designation,
                         studentId: profile.student_id || profile.register_number || parsedUser.studentId,
                         phoneNumber: profile.phone_number || parsedUser.phoneNumber,
-                        avatarUrl: profile.avatar_url || parsedUser.avatarUrl
+                        avatarUrl: profile.avatar_url || parsedUser.avatarUrl,
+                        verificationStatus: profile.verification_status || 'PENDING'
                       };
                       setUser(enriched);
                       localStorage.setItem('shov_auth_user', JSON.stringify(enriched));
@@ -193,14 +256,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setIsAuthenticated(false);
             }
           } else {
-            // Default to Rohit Kumar (initial active student persona) so student dashboard is never empty
-            const defaultUser = INITIAL_USERS[5] || INITIAL_USERS[0];
-            if (defaultUser) {
-              setUser(defaultUser);
-              setRole(defaultUser.role || 'STUDENT');
-              setIsAuthenticated(true);
-              localStorage.setItem('shov_auth_user', JSON.stringify(defaultUser));
-            }
+            // No saved user session -> maintain unauthenticated gateway state
+            setUser(null);
+            setIsAuthenticated(false);
           }
         }
       } catch (e) {
@@ -215,10 +273,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         syncUserProfile(session.user);
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
-        localStorage.removeItem('shov_auth_user');
       }
     });
 
@@ -552,6 +606,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         isAuthenticated: !!user,
         isLoading,
+        isSessionLoading,
         darkMode,
         notifications,
         toggleDarkMode,

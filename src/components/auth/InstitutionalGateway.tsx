@@ -583,15 +583,11 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
                 >
                   <option value="CSE">Computer Science & Engineering (CSE)</option>
                   <option value="IT">Information Technology (IT)</option>
+                  <option value="ECE">Electronics & Communication Engineering (ECE)</option>
                   <option value="AIDS">Artificial Intelligence & Data Science (AIDS)</option>
-                  <option value="ECE">Electronics & Communication (ECE)</option>
-                  <option value="EEE">Electrical & Electronics (EEE)</option>
+                  <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
                   <option value="MECH">Mechanical Engineering (MECH)</option>
-                  <option value="CIVIL">Civil Engineering (CIVIL)</option>
-                  <option value="BME">Biomedical Engineering (BME)</option>
-                  <option value="CHEM">Chemical Engineering (CHEM)</option>
-                  <option value="MBA">Master of Business Administration (MBA)</option>
-                  <option value="MCA">Master of Computer Applications (MCA)</option>
+                  <option value="AGRI">Agricultural Engineering (AGRI)</option>
                 </select>
               </div>
             )}
@@ -819,17 +815,13 @@ export const InstitutionalGateway: React.FC<InstitutionalGatewayProps> = () => {
                   onChange={(e) => setRegDept(e.target.value as DepartmentCode)}
                   className="w-full p-3.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white"
                 >
-                  <option value="CSE">Computer Science (CSE)</option>
-                  <option value="IT">Information Tech (IT)</option>
-                  <option value="AIDS">AI & Data Science (AIDS)</option>
-                  <option value="ECE">Electronics (ECE)</option>
-                  <option value="EEE">Electrical (EEE)</option>
-                  <option value="MECH">Mechanical (MECH)</option>
-                  <option value="CIVIL">Civil (CIVIL)</option>
-                  <option value="BME">Biomedical (BME)</option>
-                  <option value="CHEM">Chemical (CHEM)</option>
-                  <option value="MBA">MBA</option>
-                  <option value="MCA">MCA</option>
+                  <option value="CSE">Computer Science & Engineering (CSE)</option>
+                  <option value="IT">Information Technology (IT)</option>
+                  <option value="ECE">Electronics & Communication Engineering (ECE)</option>
+                  <option value="AIDS">Artificial Intelligence & Data Science (AIDS)</option>
+                  <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
+                  <option value="MECH">Mechanical Engineering (MECH)</option>
+                  <option value="AGRI">Agricultural Engineering (AGRI)</option>
                 </select>
               </div>
 

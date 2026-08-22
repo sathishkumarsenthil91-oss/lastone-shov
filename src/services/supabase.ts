@@ -1,6 +1,7 @@
 import { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { User, UserRole, DepartmentCode } from '../types';
 import { supabase, signInWithGoogle } from '../supabaseClient';
+import { getDepartmentByCode, COLLEGE_DEPARTMENTS } from '../data/departmentsData';
 
 export const SUPABASE_URL = "https://ikrmewchmenwnsfxssmp.supabase.co";
 export const SUPABASE_ANON_KEY = "sb_publishable_nz1fBclKnt7Vx8lG60VBVg_Wv9r9uyY";
@@ -33,33 +34,32 @@ export function mapSupabaseUserToAppUser(authUser: SupabaseAuthUser): User {
   const metadata = authUser.user_metadata || {};
   const role: UserRole = (metadata.role as UserRole) || 'STUDENT';
   const deptCode: DepartmentCode = (metadata.departmentCode as DepartmentCode) || 'CSE';
+  const deptInfo = getDepartmentByCode(deptCode);
 
-  const departmentNameMap: Record<DepartmentCode, string> = {
-    IT: 'Information Technology (IT)',
-    CSE: 'Computer Science & Engineering (CSE)',
-    AIDS: 'Artificial Intelligence & Data Science (AIDS)'
-  };
-
-  const displayName = metadata.name || authUser.email?.split('@')[0] || 'SHOV Scholar';
+  const displayName = metadata.name || metadata.full_name || authUser.email?.split('@')[0] || 'AVS Member';
 
   return {
     id: authUser.id,
-    username: authUser.email?.split('@')[0] || 'shov_user',
+    username: (metadata.registerNumber || metadata.studentId || authUser.email?.split('@')[0] || `user_${authUser.id.slice(0, 6)}`).toLowerCase(),
     name: displayName,
     email: authUser.email || '',
     role,
-    departmentName: departmentNameMap[deptCode] || departmentNameMap.CSE,
-    studentId: metadata.studentId || (role === 'STUDENT' ? `26${deptCode}001` : undefined),
+    departmentId: `dept-${deptCode.toLowerCase()}`,
+    departmentName: deptInfo.name,
+    studentId: metadata.studentId || metadata.registerNumber || (role === 'STUDENT' ? `26${deptCode}001` : undefined),
     designation: metadata.designation || (
       role === 'ELECTION_COUNCIL' ? 'Student Election Council Officer' :
       role === 'VICE_PRINCIPAL' ? 'Vice Principal & Academic Dean' :
-      role === 'HOD' ? `Head of Department (${deptCode})` :
-      role === 'STAFF' ? 'Proctor & Campus Security Officer' : 'B.Tech Engineering Student'
+      role === 'HOD' ? `Head of Department (${deptInfo.shortName})` :
+      role === 'STAFF' ? 'Staff & Proctor Desk Officer' :
+      role === 'PRINCIPAL' ? 'Principal & Head of Institution' : `B.E. ${deptInfo.name}`
     ),
     councilMemberId: metadata.councilMemberId,
     councilRole: metadata.councilRole,
-    phoneNumber: metadata.phone || metadata.phoneNumber || '',
-    avatarUrl: metadata.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=2563eb,3b82f6`
+    phoneNumber: metadata.phone || metadata.phoneNumber || '+91 98765 00000',
+    verificationStatus: metadata.verificationStatus || 'PENDING',
+    authProvider: (authUser.app_metadata?.provider as any) || 'password',
+    avatarUrl: metadata.avatar_url || metadata.picture || metadata.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=2563eb,3b82f6`
   };
 }
 

@@ -1,131 +1,129 @@
-import { Department } from '../types';
+import { Department, DepartmentCode } from '../types';
 
-export const ALL_COLLEGE_DEPARTMENTS: Department[] = [
+export interface DepartmentDefinition {
+  code: DepartmentCode;
+  name: string;
+  shortName: string;
+  fullName: string;
+  degree: string;
+  description: string;
+  hodName: string;
+  hodEmail: string;
+  hodPhone: string;
+  hodPhotoUrl: string;
+  studentCount: number;
+}
+
+export const COLLEGE_DEPARTMENTS: DepartmentDefinition[] = [
   {
-    id: 'dept-cse',
-    name: 'Computer Science & Engineering',
     code: 'CSE',
+    shortName: 'CSE',
+    name: 'Computer Science and Engineering',
+    fullName: 'Computer Science and Engineering (CSE)',
+    degree: 'B.E. Computer Science and Engineering',
+    description: 'Algorithms, Software Engineering, Systems Architecture, Computer Networks, Operating Systems, Compilers & Cryptography.',
     hodName: 'Dr. Aris Thorne',
-    hodEmail: 'hod.cse@shov.college.edu',
+    hodEmail: 'hod.cse@avsct.edu.in',
     hodPhone: '+91 98765 11002',
     hodPhotoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300',
-    studentCount: 480,
-    description: 'Core Computing, Distributed Architectures, Operating Systems, Cryptography & Software Engineering.'
+    studentCount: 420
   },
   {
-    id: 'dept-it',
-    name: 'Information Technology',
     code: 'IT',
+    shortName: 'IT',
+    name: 'Information Technology',
+    fullName: 'Information Technology (IT)',
+    degree: 'B.Tech Information Technology',
+    description: 'Enterprise Cloud Architecture, Full-Stack Web Technologies, Cybersecurity, Distributed Systems & DevOps.',
     hodName: 'Dr. Sarah Jenkins',
-    hodEmail: 'hod.it@shov.college.edu',
+    hodEmail: 'hod.it@avsct.edu.in',
     hodPhone: '+91 98765 11001',
     hodPhotoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=300',
-    studentCount: 420,
-    description: 'Enterprise Cloud Systems, DevOps, Full-Stack Web Technologies, Cybersecurity & Information Systems.'
+    studentCount: 360
   },
   {
-    id: 'dept-aids',
-    name: 'Artificial Intelligence & Data Science',
+    code: 'ECE',
+    shortName: 'ECE',
+    name: 'Electronics and Communication Engineering',
+    fullName: 'Electronics and Communication Engineering (ECE)',
+    degree: 'B.E. Electronics and Communication Engineering',
+    description: 'VLSI Design, Embedded Systems, Digital Signal Processing, Wireless RF Communication, Microwave & IoT Hardware.',
+    hodName: 'Dr. Raghavan Sundaram',
+    hodEmail: 'hod.ece@avsct.edu.in',
+    hodPhone: '+91 98765 11004',
+    hodPhotoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
+    studentCount: 380
+  },
+  {
     code: 'AIDS',
+    shortName: 'AIDS',
+    name: 'Artificial Intelligence and Data Science',
+    fullName: 'Artificial Intelligence and Data Science (AIDS)',
+    degree: 'B.Tech Artificial Intelligence and Data Science',
+    description: 'Deep Learning, Neural Networks, Computer Vision, Natural Language Processing, Big Data Analytics & Generative AI.',
     hodName: 'Dr. Vikramaditya Sen',
-    hodEmail: 'hod.aids@shov.college.edu',
+    hodEmail: 'hod.aids@avsct.edu.in',
     hodPhone: '+91 98765 11003',
     hodPhotoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=300',
-    studentCount: 360,
-    description: 'Neural Networks, Deep Learning, Big Data Analytics, Computer Vision & Natural Language Processing.'
+    studentCount: 320
   },
   {
-    id: 'dept-ece',
-    name: 'Electronics & Communication Engineering',
-    code: 'ECE',
-    hodName: 'Dr. Rajeshwari Raman',
-    hodEmail: 'hod.ece@shov.college.edu',
-    hodPhone: '+91 98765 11004',
-    hodPhotoUrl: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&q=80&w=300',
-    studentCount: 450,
-    description: 'VLSI Design, Embedded Systems, Signal Processing, 5G Wireless Communications & IoT.'
-  },
-  {
-    id: 'dept-eee',
-    name: 'Electrical & Electronics Engineering',
     code: 'EEE',
-    hodName: 'Dr. K. S. Balasubramanian',
-    hodEmail: 'hod.eee@shov.college.edu',
+    shortName: 'EEE',
+    name: 'Electrical and Electronics Engineering',
+    fullName: 'Electrical and Electronics Engineering (EEE)',
+    degree: 'B.E. Electrical and Electronics Engineering',
+    description: 'Power Systems, Renewable Energy Microgrids, Electric Vehicles, Control Systems, Power Electronics & Smart Grid Tech.',
+    hodName: 'Dr. Meenakshi Sundaram',
+    hodEmail: 'hod.eee@avsct.edu.in',
     hodPhone: '+91 98765 11005',
-    hodPhotoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
-    studentCount: 380,
-    description: 'Renewable Power Systems, Electric Vehicle Drives, Smart Grids, Control Systems & High Voltage Engineering.'
+    hodPhotoUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=300',
+    studentCount: 310
   },
   {
-    id: 'dept-mech',
-    name: 'Mechanical Engineering',
     code: 'MECH',
-    hodName: 'Dr. David Prakash',
-    hodEmail: 'hod.mech@shov.college.edu',
+    shortName: 'MECH',
+    name: 'Mechanical Engineering',
+    fullName: 'Mechanical Engineering (MECH)',
+    degree: 'B.E. Mechanical Engineering',
+    description: 'Thermodynamics, Robotics, CAD/CAM Manufacturing, Fluid Dynamics, Materials Science & Autonomous Automotive.',
+    hodName: 'Dr. Rajeshwari Balan',
+    hodEmail: 'hod.mech@avsct.edu.in',
     hodPhone: '+91 98765 11006',
     hodPhotoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=300',
-    studentCount: 410,
-    description: 'Robotics & Automation, Thermal Engineering, CAD/CAM Manufacturing, Fluid Dynamics & Materials Science.'
+    studentCount: 340
   },
   {
-    id: 'dept-civil',
-    name: 'Civil Engineering',
-    code: 'CIVIL',
-    hodName: 'Dr. Ananya Mukherjee',
-    hodEmail: 'hod.civil@shov.college.edu',
+    code: 'AGRI',
+    shortName: 'AGRI',
+    name: 'Agricultural Engineering',
+    fullName: 'Agricultural Engineering (AGRI)',
+    degree: 'B.Tech Agricultural Engineering',
+    description: 'Precision Agriculture, Drone Crop Scouting, Smart Irrigation Systems, Food Processing Machinery & Soil Analytics.',
+    hodName: 'Dr. Senthil Nathan',
+    hodEmail: 'hod.agri@avsct.edu.in',
     hodPhone: '+91 98765 11007',
-    hodPhotoUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=300',
-    studentCount: 300,
-    description: 'Structural Analysis, Smart Infrastructure, Environmental Engineering, Geotechnical Engineering & Surveying.'
-  },
-  {
-    id: 'dept-bme',
-    name: 'Biomedical Engineering',
-    code: 'BME',
-    hodName: 'Dr. Priya Varma',
-    hodEmail: 'hod.bme@shov.college.edu',
-    hodPhone: '+91 98765 11008',
-    hodPhotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-    studentCount: 260,
-    description: 'Medical Imaging, Bio-Instrumentation, Prosthetics, Neural Engineering & Healthcare Robotics.'
-  },
-  {
-    id: 'dept-aero',
-    name: 'Aeronautical Engineering',
-    code: 'AERO',
-    hodName: 'Dr. Sudhir Narayan',
-    hodEmail: 'hod.aero@shov.college.edu',
-    hodPhone: '+91 98765 11009',
     hodPhotoUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=300',
-    studentCount: 220,
-    description: 'Aerodynamics, Propulsion Systems, Flight Mechanics, Spacecraft Dynamics & Drone Avionics.'
-  },
-  {
-    id: 'dept-csbs',
-    name: 'Computer Science & Business Systems',
-    code: 'CSBS',
-    hodName: 'Dr. Meenakshi Sundaram',
-    hodEmail: 'hod.csbs@shov.college.edu',
-    hodPhone: '+91 98765 11010',
-    hodPhotoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=300',
-    studentCount: 280,
-    description: 'Enterprise Architecture, Financial Technology, Computational Finance & Business Analytics.'
-  },
-  {
-    id: 'dept-mba',
-    name: 'Management Studies (MBA)',
-    code: 'MBA',
-    hodName: 'Dr. Christopher Lynn',
-    hodEmail: 'hod.mba@shov.college.edu',
-    hodPhone: '+91 98765 11011',
-    hodPhotoUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=300',
-    studentCount: 240,
-    description: 'Strategic Operations, Marketing & Digital Media, Corporate Finance & Human Resource Leadership.'
+    studentCount: 280
   }
 ];
 
-export const DEPARTMENT_OPTIONS = ALL_COLLEGE_DEPARTMENTS.map(d => ({
-  code: d.code,
+export const ALL_DEPARTMENTS_LIST: Department[] = COLLEGE_DEPARTMENTS.map(d => ({
+  id: `dept-${d.code.toLowerCase()}`,
   name: d.name,
-  hod: d.hodName
+  code: d.code,
+  hodName: d.hodName,
+  hodEmail: d.hodEmail,
+  hodPhone: d.hodPhone,
+  hodPhotoUrl: d.hodPhotoUrl,
+  studentCount: d.studentCount,
+  description: d.description
 }));
+
+export const ALL_COLLEGE_DEPARTMENTS = COLLEGE_DEPARTMENTS;
+
+export function getDepartmentByCode(code?: string): DepartmentDefinition {
+  if (!code) return COLLEGE_DEPARTMENTS[0];
+  const cleaned = code.replace(/^dept-/, '').toUpperCase();
+  return COLLEGE_DEPARTMENTS.find(d => d.code === cleaned) || COLLEGE_DEPARTMENTS[0];
+}

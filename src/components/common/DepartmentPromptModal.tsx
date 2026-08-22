@@ -105,9 +105,9 @@ export const DepartmentPromptModal: React.FC<DepartmentPromptModalProps> = ({
               const isSelected = currentSelectedCode === dept.code;
               return (
                 <button
-                  key={dept.id}
+                  key={dept.code}
                   onClick={() => {
-                    onSelectDepartment(dept);
+                    onSelectDepartment(dept as any);
                     onClose();
                   }}
                   className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 group cursor-pointer ${

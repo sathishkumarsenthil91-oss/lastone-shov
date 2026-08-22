@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 function AppContent() {
-  const { user, role, isAuthenticated, completeStudentOnboarding, createNewStaffAccount, addNotification } = useAuth();
+  const { user, role, isAuthenticated, isSessionLoading, completeStudentOnboarding, createNewStaffAccount, addNotification } = useAuth();
   
   const [showSplash, setShowSplash] = useState(true);
   const [loginModalMode, setLoginModalMode] = useState<'otp' | 'login' | 'signup' | 'council' | null>(null);
@@ -103,8 +103,16 @@ function AppContent() {
       <main className="flex-1 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           
-          {/* If Logged In: Strictly render ONLY the active persona's workspace */}
-          {isAuthenticated && user ? (
+          {/* While Initial Session Check is in progress and not authenticated, show smooth loader */}
+          {isSessionLoading && !isAuthenticated ? (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-4">
+              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
+                Verifying Institutional Credentials...
+              </p>
+            </div>
+          ) : isAuthenticated && user ? (
+            /* If Logged In: Strictly render ONLY the active persona's workspace */
             <>
               {role === 'STUDENT' && <StudentSection />}
               {role === 'STAFF' && <StaffSection />}

@@ -585,16 +585,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 >
                   <option value="CSE">Computer Science & Engineering (CSE)</option>
                   <option value="IT">Information Technology (IT)</option>
+                  <option value="ECE">Electronics & Communication Engineering (ECE)</option>
                   <option value="AIDS">Artificial Intelligence & Data Science (AIDS)</option>
-                  <option value="ECE">Electronics & Communication (ECE)</option>
-                  <option value="EEE">Electrical & Electronics (EEE)</option>
+                  <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
                   <option value="MECH">Mechanical Engineering (MECH)</option>
-                  <option value="CIVIL">Civil Engineering (CIVIL)</option>
-                  <option value="BME">Biomedical Engineering (BME)</option>
-                  <option value="CHEM">Chemical Engineering (CHEM)</option>
-                  <option value="AERO">Aeronautical Engineering (AERO)</option>
-                  <option value="MBA">Master of Business Administration (MBA)</option>
-                  <option value="MCA">Master of Computer Applications (MCA)</option>
+                  <option value="AGRI">Agricultural Engineering (AGRI)</option>
                 </select>
               </div>
             )}
@@ -849,16 +844,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               >
                 <option value="CSE">Computer Science & Engineering (CSE)</option>
                 <option value="IT">Information Technology (IT)</option>
+                <option value="ECE">Electronics & Communication Engineering (ECE)</option>
                 <option value="AIDS">Artificial Intelligence & Data Science (AIDS)</option>
-                <option value="ECE">Electronics & Communication (ECE)</option>
-                <option value="EEE">Electrical & Electronics (EEE)</option>
+                <option value="EEE">Electrical & Electronics Engineering (EEE)</option>
                 <option value="MECH">Mechanical Engineering (MECH)</option>
-                <option value="CIVIL">Civil Engineering (CIVIL)</option>
-                <option value="BME">Biomedical Engineering (BME)</option>
-                <option value="CHEM">Chemical Engineering (CHEM)</option>
-                <option value="AERO">Aeronautical Engineering (AERO)</option>
-                <option value="MBA">Master of Business Administration (MBA)</option>
-                <option value="MCA">Master of Computer Applications (MCA)</option>
+                <option value="AGRI">Agricultural Engineering (AGRI)</option>
               </select>
             </div>
 

@@ -7,10 +7,11 @@ export type FineStatus = 'PENDING' | 'PAID' | 'WAIVED' | 'CANCELLED';
 export type DepartmentCode = 
   | 'CSE' 
   | 'IT' 
-  | 'AIDS' 
   | 'ECE' 
+  | 'AIDS' 
   | 'EEE' 
   | 'MECH' 
+  | 'AGRI' 
   | 'CIVIL' 
   | 'BME' 
   | 'CHEM' 
@@ -87,6 +88,11 @@ export interface User {
   designation?: string;
   councilMemberId?: string;
   councilRole?: ElectionCouncilRole;
+  verificationStatus?: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  authProvider?: 'google' | 'password' | 'otp' | 'institutional';
+  googleUserId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Student {
@@ -102,6 +108,11 @@ export interface Student {
   departmentCode?: string;
   course: string;
   year: number;
+  section?: string;
+  classCoordinatorId?: string;
+  classCoordinatorName?: string;
+  classCoordinatorEmail?: string;
+  classCoordinatorPhone?: string;
   collegeEmail: string;
   phoneNumber: string;
   status: IDStatus;
@@ -437,7 +448,7 @@ export interface SavedProperty {
 // STAFF ATTENDANCE & ALLOCATION TYPES
 // ============================================================================
 
-export type AttendanceStatus = 'Present' | 'Absent';
+export type AttendanceStatus = 'Present' | 'Absent' | 'Leave' | 'present' | 'absent' | 'leave';
 
 export interface StaffMember {
   id: string;
@@ -447,7 +458,25 @@ export interface StaffMember {
   designation: string;
   phoneNumber?: string;
   avatarUrl?: string;
+  isClassCoordinator?: boolean;
+  assignedYear?: number;
+  assignedSection?: string;
 }
+
+export interface ClassCoordinatorAssignment {
+  staffId: string;
+  staffName: string;
+  staffEmail: string;
+  staffPhone: string;
+  departmentCode: DepartmentCode;
+  departmentName: string;
+  year: number;
+  section: string;
+  roomNumber?: string;
+  officeHours?: string;
+}
+
+export type ClassCoordinator = ClassCoordinatorAssignment;
 
 export interface StaffStudentAllocation {
   id: string;
@@ -475,6 +504,8 @@ export interface AttendanceRecord {
   departmentName?: string;
   departmentCode?: DepartmentCode;
   course?: string;
+  year?: number;
+  section?: string;
   photoUrl?: string;
 }
 
@@ -483,8 +514,28 @@ export interface AttendanceDailySummary {
   totalAllocated: number;
   presentCount: number;
   absentCount: number;
+  leaveCount: number;
   unmarkedCount: number;
   attendancePercentage: number;
+}
+
+export interface StudentAttendanceStats {
+  studentId: string;
+  studentName: string;
+  registerNumber: string;
+  departmentName: string;
+  departmentCode: DepartmentCode;
+  year: number;
+  section: string;
+  coordinatorName: string;
+  coordinatorEmail: string;
+  coordinatorPhone: string;
+  totalWorkingDays: number;
+  presentDays: number;
+  absentDays: number;
+  leaveDays: number;
+  attendancePercentage: number;
+  records: AttendanceRecord[];
 }
 
 

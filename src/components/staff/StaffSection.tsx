@@ -9,7 +9,7 @@ import { RoleLiveVerifiedBadge } from '../common/RoleLiveVerifiedBadge';
 import { ShieldCheck, History, Scan, Building2, UserCheck, QrCode, FileText, CalendarCheck } from 'lucide-react';
 
 export const StaffSection: React.FC = () => {
-  const [activeStaffTab, setActiveStaffTab] = useState<'attendance' | 'badge' | 'scanner' | 'history' | 'coordinator-passes' | 'communication'>('attendance');
+  const [activeStaffTab, setActiveStaffTab] = useState<'attendance' | 'coordinator-desk' | 'badge' | 'scanner' | 'history' | 'communication'>('attendance');
 
   return (
     <div className="space-y-6">
@@ -63,6 +63,18 @@ export const StaffSection: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveStaffTab('coordinator-desk')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+            activeStaffTab === 'coordinator-desk'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Class Coordinator (CC) Desk</span>
+        </button>
+
+        <button
           onClick={() => setActiveStaffTab('badge')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
             activeStaffTab === 'badge'
@@ -84,18 +96,6 @@ export const StaffSection: React.FC = () => {
         >
           <Scan className="w-3.5 h-3.5" />
           <span>Live Gate Scanner & Biometrics</span>
-        </button>
-
-        <button
-          onClick={() => setActiveStaffTab('coordinator-passes')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-            activeStaffTab === 'coordinator-passes'
-              ? 'bg-emerald-600 text-white shadow-md'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800/60'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Gate Pass Verification Desk</span>
         </button>
 
         <button
@@ -128,6 +128,10 @@ export const StaffSection: React.FC = () => {
         <StaffAttendanceDashboard />
       )}
 
+      {activeStaffTab === 'coordinator-desk' && (
+        <ClassCoordinatorSection />
+      )}
+
       {activeStaffTab === 'badge' && (
         <div className="py-2">
           <StaffDigitalIDCard />
@@ -136,10 +140,6 @@ export const StaffSection: React.FC = () => {
 
       {activeStaffTab === 'scanner' && (
         <StaffScanner />
-      )}
-
-      {activeStaffTab === 'coordinator-passes' && (
-        <ClassCoordinatorSection />
       )}
 
       {activeStaffTab === 'history' && (

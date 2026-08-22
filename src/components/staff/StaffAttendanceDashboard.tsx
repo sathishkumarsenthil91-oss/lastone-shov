@@ -77,7 +77,7 @@ export const StaffAttendanceDashboard: React.FC = () => {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'UNMARKED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'LEAVE' | 'UNMARKED'>('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // History & Summaries
@@ -102,7 +102,7 @@ export const StaffAttendanceDashboard: React.FC = () => {
       id: selectedStaffId,
       name: user?.name || 'Staff Proctor',
       email: user?.email || 'staff@avsct.edu.in',
-      departmentCode: 'CSE',
+      departmentCode: (user?.departmentCode || 'CSE') as DepartmentCode,
       designation: user?.designation || 'Staff Incharge',
       phoneNumber: user?.phoneNumber || '+91 98765 00000',
       avatarUrl: user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300'
@@ -117,7 +117,7 @@ export const StaffAttendanceDashboard: React.FC = () => {
   const loadAllocatedStudents = async (staffId: string) => {
     setIsLoadingStudents(true);
     try {
-      const students = await fetchAllocatedStudentsForStaff(staffId);
+      const students = await fetchAllocatedStudentsForStaff(staffId, activeStaff.departmentCode);
       setAllocatedStudents(students);
     } catch (err) {
       console.error('Failed to load students:', err);
@@ -199,18 +199,21 @@ export const StaffAttendanceDashboard: React.FC = () => {
     const total = allocatedStudents.length;
     let present = 0;
     let absent = 0;
+    let leave = 0;
 
     allocatedStudents.forEach(st => {
       const record = attendanceMap.get(st.id);
       if (record?.status === 'Present') present++;
       else if (record?.status === 'Absent') absent++;
+      else if (record?.status === 'Leave') leave++;
     });
 
-    const marked = present + absent;
+    const marked = present + absent + leave;
     const unmarked = Math.max(0, total - marked);
+    // Strict compliance rule: Leave is NOT counted as Present
     const percentage = marked > 0 ? Math.round((present / marked) * 100) : 0;
 
-    return { total, present, absent, unmarked, marked, percentage };
+    return { total, present, absent, leave, unmarked, marked, percentage };
   }, [allocatedStudents, attendanceMap]);
 
   // Filtered student list
@@ -227,6 +230,7 @@ export const StaffAttendanceDashboard: React.FC = () => {
       const record = attendanceMap.get(student.id);
       if (statusFilter === 'PRESENT') return record?.status === 'Present';
       if (statusFilter === 'ABSENT') return record?.status === 'Absent';
+      if (statusFilter === 'LEAVE') return record?.status === 'Leave';
       if (statusFilter === 'UNMARKED') return !record || !record.status;
 
       return true;
@@ -325,6 +329,63 @@ export const StaffAttendanceDashboard: React.FC = () => {
     setCopiedSql(true);
     setTimeout(() => setCopiedSql(false), 2000);
     addNotification('SQL Copied', 'Supabase DDL and RLS script copied to clipboard.', 'success');
+  };
+
+  // Export Attendance Records for Selected Date as CSV
+  const handleExportCsv = () => {
+    if (allocatedStudents.length === 0) {
+      addNotification('Export Warning', 'No students allocated to your roster to export.', 'warning');
+      return;
+    }
+
+    const headers = [
+      'Student ID',
+      'Register Number',
+      'Student Name',
+      'Department',
+      'Year',
+      'Attendance Date',
+      'Attendance Status',
+      'Marked By Staff ID',
+      'Marked By Staff Name',
+      'Staff Official Email',
+      'Export Timestamp'
+    ];
+
+    const nowIso = new Date().toISOString();
+    const rows = allocatedStudents.map(student => {
+      const record = attendanceMap.get(student.id);
+      const status = record?.status || 'Unmarked';
+      return [
+        `"${student.studentIdNumber || student.id}"`,
+        `"${student.registerNumber}"`,
+        `"${(student.name || '').replace(/"/g, '""')}"`,
+        `"${(student.departmentName || student.department || 'CSE').replace(/"/g, '""')}"`,
+        `"${student.year || 3}"`,
+        `"${attendanceDate}"`,
+        `"${status}"`,
+        `"${selectedStaffId}"`,
+        `"${(activeStaff.name || '').replace(/"/g, '""')}"`,
+        `"${activeStaff.email || ''}"`,
+        `"${nowIso}"`
+      ].join(',');
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const sanitizedStaffName = (activeStaff.name || 'Staff').replace(/[^a-zA-Z0-9_-]/g, '_');
+    link.setAttribute('download', `Attendance_${sanitizedStaffName}_${attendanceDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    addNotification(
+      'CSV Downloaded',
+      `Attendance data for ${attendanceDate} (${allocatedStudents.length} students) exported successfully.`,
+      'success'
+    );
   };
 
   // Date shortcuts
@@ -459,6 +520,15 @@ export const StaffAttendanceDashboard: React.FC = () => {
         {/* Right: Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap w-full md:w-auto justify-end">
           <button
+            onClick={handleExportCsv}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+            title="Download attendance records for this date as CSV"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </button>
+
+          <button
             onClick={() => setShowAllocationModal(true)}
             className="px-3.5 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
@@ -533,14 +603,14 @@ export const StaffAttendanceDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Unmarked / Pending */}
+        {/* Leave (Excused) */}
         <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">
-              Unmarked / Pending
+              Approved Leave
             </span>
             <span className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block">
-              {stats.unmarked}
+              {stats.leave}
             </span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
@@ -564,7 +634,7 @@ export const StaffAttendanceDashboard: React.FC = () => {
                 {stats.percentage}%
               </span>
               <span className="text-[10px] text-slate-400">
-                {stats.present} of {stats.total}
+                {stats.present} of {stats.marked || stats.total}
               </span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-1.5 mt-2 overflow-hidden">
@@ -626,11 +696,21 @@ export const StaffAttendanceDashboard: React.FC = () => {
             Absent ({stats.absent})
           </button>
           <button
+            onClick={() => setStatusFilter('LEAVE')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              statusFilter === 'LEAVE'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
+            }`}
+          >
+            Leave ({stats.leave})
+          </button>
+          <button
             onClick={() => setStatusFilter('UNMARKED')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               statusFilter === 'UNMARKED'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
             }`}
           >
             Unmarked ({stats.unmarked})
@@ -754,6 +834,11 @@ export const StaffAttendanceDashboard: React.FC = () => {
                           <XCircle className="w-3 h-3" />
                           <span>ABSENT</span>
                         </span>
+                      ) : status === 'Leave' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[11px] font-black font-mono">
+                          <Clock className="w-3 h-3" />
+                          <span>LEAVE</span>
+                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-bold font-mono">
                           <Clock className="w-3 h-3" />
@@ -768,7 +853,7 @@ export const StaffAttendanceDashboard: React.FC = () => {
                     <div>
                       <span className="text-slate-400 block">Course</span>
                       <span className="font-semibold text-slate-700 dark:text-slate-300 truncate block">
-                        {student.course || 'B.E. Computer Science'}
+                        {student.course || 'B.E. Engineering'}
                       </span>
                     </div>
                     <div>
@@ -780,35 +865,49 @@ export const StaffAttendanceDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Bottom: Attendance Selection Buttons */}
+                {/* Bottom: Attendance Selection Buttons (3 States) */}
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {/* PRESENT BUTTON */}
                     <button
                       onClick={() => handleMarkAttendance(student.id, 'Present')}
                       disabled={isSaving}
-                      className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`py-2 px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
                         status === 'Present'
                           ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 ring-2 ring-emerald-500'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600'
                       }`}
                     >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>{status === 'Present' ? 'Present ✓' : 'Mark Present'}</span>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Present</span>
                     </button>
 
                     {/* ABSENT BUTTON */}
                     <button
                       onClick={() => handleMarkAttendance(student.id, 'Absent')}
                       disabled={isSaving}
-                      className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`py-2 px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
                         status === 'Absent'
                           ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20 ring-2 ring-rose-500'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600'
                       }`}
                     >
-                      <XCircle className="w-4 h-4" />
-                      <span>{status === 'Absent' ? 'Absent ✕' : 'Mark Absent'}</span>
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>Absent</span>
+                    </button>
+
+                    {/* LEAVE BUTTON */}
+                    <button
+                      onClick={() => handleMarkAttendance(student.id, 'Leave')}
+                      disabled={isSaving}
+                      className={`py-2 px-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                        status === 'Leave'
+                          ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20 ring-2 ring-amber-500'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-600'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Leave</span>
                     </button>
                   </div>
 
